@@ -58,6 +58,29 @@ function getLanguageByExtension(filename: string) {
   return LANGUAGES.find(l => l.extension === ext) || null
 }
 
+function getFileIconColor(filename: string, isDark: boolean): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || ''
+  const colors: Record<string, [string, string]> = {
+    js: ['text-yellow-400', 'text-yellow-600'],
+    py: ['text-blue-400', 'text-blue-600'],
+    java: ['text-orange-400', 'text-orange-600'],
+    cpp: ['text-sky-400', 'text-sky-600'],
+    c: ['text-sky-400', 'text-sky-600'],
+    cs: ['text-green-400', 'text-green-600'],
+    php: ['text-purple-400', 'text-purple-600'],
+    rb: ['text-red-400', 'text-red-600'],
+    go: ['text-cyan-400', 'text-cyan-600'],
+    rs: ['text-orange-300', 'text-orange-700'],
+    ts: ['text-blue-400', 'text-blue-600'],
+    html: ['text-orange-400', 'text-orange-600'],
+    css: ['text-pink-400', 'text-pink-600'],
+    json: ['text-yellow-300', 'text-yellow-700'],
+    md: ['text-slate-300', 'text-slate-600'],
+  }
+  const c = colors[ext]
+  return c ? (isDark ? c[0] : c[1]) : (isDark ? 'text-slate-400' : 'text-gray-500')
+}
+
 function makeDefaultTree(lang: typeof LANGUAGES[number]): FileNode[] {
   return [{
     id: uid(),
@@ -540,7 +563,14 @@ const OnlineCompiler = () => {
     setFileTree(prev => {
       const next = cloneTree(prev)
       const node = findNode(next, renamingId)
-      if (node) node.name = renameValue.trim()
+      if (node) {
+        node.name = renameValue.trim()
+        // Auto-fill boilerplate when file is empty (e.g. just created)
+        if (node.type === 'file' && !node.content?.trim()) {
+          const lang = getLanguageByExtension(node.name)
+          if (lang) node.content = lang.template
+        }
+      }
       return sortTree(next)
     })
     setRenamingId(null)
@@ -628,7 +658,7 @@ const OnlineCompiler = () => {
             ) : <span className="w-3" />}
             {isFolder
               ? <FiFolder className={`w-3.5 h-3.5 shrink-0 ${isDarkMode ? 'text-yellow-400' : 'text-amber-500'}`} />
-              : <FiFile className={`w-3.5 h-3.5 shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`} />
+              : <FiFile className={`w-3.5 h-3.5 shrink-0 ${getFileIconColor(node.name, isDarkMode)}`} />
             }
             {isRenaming ? (
               <input
@@ -679,52 +709,55 @@ const OnlineCompiler = () => {
       </div>
 
       <div className="h-full w-full flex flex-col overflow-hidden relative z-10">
-        <div className={`${glassStyle} flex-1 flex flex-col min-h-0 overflow-hidden p-1 sm:p-3 lg:p-4`}>
+        <div className={`${glassStyle} flex-1 flex flex-col min-h-0 overflow-hidden p-1 sm:p-2 lg:p-3`}>
           {/* ─── Header / Toolbar ──────────────────────────────────────── */}
-          <div className={`flex flex-col gap-2 sm:gap-3 mb-2 sm:mb-3 px-2 sm:px-3 py-2 sm:py-3 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
+          <div className={`flex items-center justify-between gap-2 mb-1 sm:mb-2 px-2 sm:px-3 py-1.5 sm:py-2 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
             <div className="flex items-center justify-between gap-2 sm:gap-3">
-              <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setSidebarOpen(p => !p)}
-                  className={`p-1.5 sm:p-2 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                  className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
                   title="Toggle file explorer"
                 >
-                  <FiSidebar className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <FiSidebar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
-                <select
-                  value={selectedLanguage.id}
-                  onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
-                  title="Select programming language"
-                  className={`px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-md ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs sm:text-sm min-w-0 shrink`}
-                >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguage.color }} />
+                  <select
+                    value={selectedLanguage.id}
+                    onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
+                    title="Select programming language"
+                    className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs sm:text-sm min-w-0 shrink`}
+                  >
                   {LANGUAGES.map(lang => (
                     <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
                   ))}
-                </select>
-                <div className={`hidden lg:block text-sm ${ts.textMuted} ${ts.bgPrimary} px-3 py-1.5 rounded-md ${ts.borderLight} border`}>Ctrl+Enter</div>
+                  </select>
+                </div>
+                <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-2 py-1 rounded ${ts.borderLight} border`}>Ctrl+Enter</div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={toggleTheme} className={`p-1.5 sm:p-2 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
-                  {isDarkMode ? <FiSun className="h-4 w-4 sm:h-5 sm:w-5" /> : <FiMoon className="h-4 w-4 sm:h-5 sm:w-5" />}
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                <button onClick={toggleTheme} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+                  {isDarkMode ? <FiSun className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <FiMoon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                 </button>
-                <button onClick={copyCode} className={`p-1.5 sm:p-2 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
-                  <FiCopy className="h-4 w-4 sm:h-5 sm:w-5" />
+                <button onClick={copyCode} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
+                  <FiCopy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
-                <button onClick={downloadZip} className={`p-1.5 sm:p-2 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
-                  <FiDownload className="h-4 w-4 sm:h-5 sm:w-5" />
+                <button onClick={downloadZip} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
+                  <FiDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
                 <button
                   onClick={executeCode}
                   disabled={isExecuting}
-                  className={`px-2 sm:px-4 py-1.5 sm:py-2 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded-md transition-all duration-150 flex items-center space-x-1 sm:space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs sm:text-sm font-medium`}
+                  className={`px-2 sm:px-3 py-1 sm:py-1.5 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded-md transition-all duration-150 flex items-center space-x-1 sm:space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs sm:text-sm font-medium`}
                 >
                   {isExecuting
-                    ? <><FiRefreshCw className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /><span className="hidden sm:inline">Running...</span><span className="sm:hidden">Run</span></>
-                    : <><FiPlay className="h-4 w-4 sm:h-5 sm:w-5" /><span className="hidden sm:inline">Run</span></>
+                    ? <><FiRefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /><span className="hidden sm:inline">Running...</span><span className="sm:hidden">Run</span></>
+                    : <><FiPlay className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline">Run</span></>
                   }
                 </button>
                 {executionTime && (
-                  <div className={`hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-2 sm:px-3 py-1.5 rounded-md`}>
+                  <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-2 py-1 rounded`}>
                     <FiClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" /><span>{executionTime}ms</span>
                   </div>
                 )}
@@ -739,7 +772,7 @@ const OnlineCompiler = () => {
             {sidebarOpen && (
               <div
                 className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
-                style={isMobile ? undefined : { width: '220px' }}
+                style={isMobile ? undefined : { width: '200px' }}
               >
                 <div className={`flex items-center justify-between px-3 py-2 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
                   <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
@@ -823,7 +856,7 @@ const OnlineCompiler = () => {
                           }`}
                         onClick={() => setActiveFileId(tabId)}
                       >
-                        <FiFile className="w-3 h-3 shrink-0" />
+                        <FiFile className={`w-3 h-3 shrink-0 ${getFileIconColor(node.name, isDarkMode)}`} />
                         <span className="truncate max-w-25">{node.name}</span>
                         <button
                           onClick={(e) => closeTab(tabId, e)}
@@ -908,19 +941,19 @@ const OnlineCompiler = () => {
               }}>
                 {/* Input Section */}
                 <div className="flex flex-col overflow-hidden" style={{ height: isMobile ? `${mobileOutputHeight}%` : `${outputHeight}%` }}>
-                  <div className={`flex items-center justify-between mb-1 sm:mb-2 px-2 sm:px-3 py-1.5 sm:py-2 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
-                    <div className="flex items-center space-x-2">
-                      <FiTerminal className={`h-4 w-4 sm:h-5 sm:w-5 ${isDarkMode ? 'text-blue-400' : 'text-purple-600'}`} />
-                      <span className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-purple-800'}`}>Input (stdin)</span>
+                  <div className={`flex items-center justify-between mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
+                    <div className="flex items-center space-x-1.5">
+                      <FiTerminal className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isDarkMode ? 'text-blue-400' : 'text-purple-600'}`} />
+                      <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-purple-800'}`}>Input (stdin)</span>
                     </div>
                     <button
                       onClick={async () => {
                         try { const t = await navigator.clipboard.readText(); setInput(t) }
                         catch { Swal.fire({ title: 'Paste Failed', text: 'Unable to access clipboard.', icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' }) }
                       }}
-                      className={`p-1.5 sm:p-2 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                      className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
                       title="Paste from Clipboard"
-                    ><FiCode className="h-4 w-4 sm:h-5 sm:w-5" /></button>
+                    ><FiCode className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></button>
                   </div>
                   <textarea
                     value={input} onChange={(e) => setInput(e.target.value)}
@@ -939,16 +972,16 @@ const OnlineCompiler = () => {
                 )}
 
                 {/* Desktop Vertical Resizer */}
-                <div className={`${isMobile ? 'hidden' : 'lg:flex'} h-1 ${ts.resizer} cursor-row-resize transition-colors duration-200 rounded-full items-center justify-center group my-2`} onMouseDown={handleVerticalMouseDown}>
+                <div className={`${isMobile ? 'hidden' : 'lg:flex'} h-0.5 ${ts.resizer} cursor-row-resize transition-colors duration-200 rounded-full items-center justify-center group my-1`} onMouseDown={handleVerticalMouseDown}>
                   <div className={`h-0.5 w-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
                 </div>
 
                 {/* Output Section */}
                 <div className="flex flex-col overflow-hidden flex-1" style={{ height: isMobile ? `${100 - mobileOutputHeight}%` : undefined }}>
-                  <div className={`flex items-center justify-between mb-1 sm:mb-2 px-2 sm:px-3 py-1.5 sm:py-2 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
-                    <div className="flex items-center space-x-2">
-                      <FiTerminal className={`h-4 w-4 sm:h-5 sm:w-5 ${isDarkMode ? 'text-green-400' : 'text-emerald-600'}`} />
-                      <span className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-emerald-800'}`}>Output</span>
+                  <div className={`flex items-center justify-between mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
+                    <div className="flex items-center space-x-1.5">
+                      <FiTerminal className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isDarkMode ? 'text-green-400' : 'text-emerald-600'}`} />
+                      <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-emerald-800'}`}>Output</span>
                     </div>
                     {output && (
                       <div className={`flex items-center space-x-1 text-xs ${ts.textMuted}`}>

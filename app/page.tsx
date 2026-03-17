@@ -535,25 +535,25 @@ const OnlineCompiler = () => {
     textMuted: isDarkMode ? 'text-gray-500 dark:text-slate-400' : 'text-indigo-600',
     border: isDarkMode ? 'border-white/10' : 'border-purple-200/80',
     borderLight: isDarkMode ? 'border-white/5' : 'border-pink-200/60',
-    bgPrimary: isDarkMode ? 'bg-white/5' : 'bg-gradient-to-r from-purple-100/60 to-pink-100/60',
-    bgSecondary: isDarkMode ? 'bg-white/10' : 'bg-gradient-to-r from-indigo-100/70 to-cyan-100/70',
-    bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-gradient-to-r hover:from-purple-200/80 hover:to-pink-200/80',
+    bgPrimary: isDarkMode ? 'bg-white/5' : 'bg-linear-to-r from-purple-100/60 to-pink-100/60',
+    bgSecondary: isDarkMode ? 'bg-white/10' : 'bg-linear-to-r from-indigo-100/70 to-cyan-100/70',
+    bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-linear-to-r hover:from-purple-200/80 hover:to-pink-200/80',
     bgInput: isDarkMode ? 'bg-slate-900/20' : 'bg-white',
-    bgModal: isDarkMode ? 'bg-white/10' : 'bg-gradient-to-br from-white/95 to-purple-50/95',
-    resizer: isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-gradient-to-r from-purple-300/40 to-pink-300/40 hover:from-purple-400/60 hover:to-pink-400/60',
-    resizerBar: isDarkMode ? 'bg-white/20 group-hover:bg-white/40' : 'bg-gradient-to-r from-purple-500/60 to-pink-500/60 group-hover:from-purple-600/80 group-hover:to-pink-600/80'
+    bgModal: isDarkMode ? 'bg-white/10' : 'bg-linear-to-br from-white/95 to-purple-50/95',
+    resizer: isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-linear-to-r from-purple-300/40 to-pink-300/40 hover:from-purple-400/60 hover:to-pink-400/60',
+    resizerBar: isDarkMode ? 'bg-white/20 group-hover:bg-white/40' : 'bg-linear-to-r from-purple-500/60 to-pink-500/60 group-hover:from-purple-600/80 group-hover:to-pink-600/80'
   }
 
   return (
     <div
-      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
+      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
       suppressHydrationWarning
     >
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-gradient-to-br from-cyan-500/10 to-blue-600/10' : 'bg-gradient-to-br from-pink-400/30 to-purple-500/30'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-gradient-to-br from-purple-500/10 to-pink-600/10' : 'bg-gradient-to-br from-cyan-400/30 to-indigo-500/30'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-gradient-to-br from-teal-500/5 to-cyan-600/5' : 'bg-gradient-to-br from-orange-300/25 to-pink-400/25'} rounded-full blur-3xl`} />
+        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-cyan-500/10 to-blue-600/10' : 'bg-linear-to-br from-pink-400/30 to-purple-500/30'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-purple-500/10 to-pink-600/10' : 'bg-linear-to-br from-cyan-400/30 to-indigo-500/30'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-linear-to-br from-teal-500/5 to-cyan-600/5' : 'bg-linear-to-br from-orange-300/25 to-pink-400/25'} rounded-full blur-3xl`} />
       </div>
 
       <div className="h-full w-full flex flex-col overflow-hidden relative z-10">
@@ -571,7 +571,8 @@ const OnlineCompiler = () => {
                     const lang = LANGUAGES.find(l => l.id === e.target.value)
                     if (lang) handleLanguageChange(lang)
                   }}
-                  className={`px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-md ${themeStyles.bgSecondary} ${themeStyles.border} border ${themeStyles.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs sm:text-sm min-w-0 flex-shrink`}
+                  title="Select programming language"
+                  className={`px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-md ${themeStyles.bgSecondary} ${themeStyles.border} border ${themeStyles.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs sm:text-sm min-w-0 shrink`}
                 >
                   {LANGUAGES.map(lang => (
                     <option key={lang.id} value={lang.id} className={`${isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}`}>
@@ -616,7 +617,7 @@ const OnlineCompiler = () => {
                 <button
                   onClick={executeCode}
                   disabled={isExecuting}
-                  className={`px-2 sm:px-4 py-1.5 sm:py-2 ${isDarkMode ? 'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded-md transition-all duration-150 flex items-center space-x-1 sm:space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs sm:text-sm font-medium`}
+                  className={`px-2 sm:px-4 py-1.5 sm:py-2 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded-md transition-all duration-150 flex items-center space-x-1 sm:space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs sm:text-sm font-medium`}
                 >
                   {isExecuting ? (
                     <>
@@ -633,7 +634,7 @@ const OnlineCompiler = () => {
                 </button>
 
                 {executionTime && (
-                  <div className={`hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${themeStyles.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-2 sm:px-3 py-1.5 rounded-md`}>
+                  <div className={`hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${themeStyles.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-2 sm:px-3 py-1.5 rounded-md`}>
                     <FiClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     <span>{executionTime}ms</span>
                   </div>

@@ -1,20 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const WANDBOX_API = 'https://wandbox.org/api/compile.json'
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const { code, compiler, stdin } = await request.json()
 
-    const response = await fetch('https://piston-api.vercel.app/api/v1/execute', {
+    if (!code || !compiler) {
+      return NextResponse.json(
+        { error: 'Missing required fields: code and compiler' },
+        { status: 400 }
+      )
+    }
+
+    const wandboxPayload: Record<string, string> = {
+      code,
+      compiler,
+    }
+
+    if (stdin) {
+      wandboxPayload.stdin = stdin
+    }
+
+    const response = await fetch(WANDBOX_API, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(wandboxPayload),
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
       return NextResponse.json(
-        { error: `Piston API error: ${response.status}` },
+        { error: `Wandbox API error: ${response.status} - ${errorText}` },
         { status: response.status }
       )
     }

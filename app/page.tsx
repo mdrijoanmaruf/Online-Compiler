@@ -14,46 +14,51 @@ const LANGUAGES = [
   { 
     id: 'javascript', 
     name: 'JavaScript', 
-    version: '18.15.0', 
+    version: '20.17.0', 
     extension: 'js', 
     color: '#f7df1e',
     monacoLanguage: 'javascript',
+    wandboxCompiler: 'nodejs-20.17.0',
     template: 'console.log("Hello, World!");'
   },
   { 
     id: 'python', 
     name: 'Python', 
-    version: '3.10.0', 
+    version: '3.12.7', 
     extension: 'py', 
     color: '#3776ab',
     monacoLanguage: 'python',
+    wandboxCompiler: 'cpython-3.12.7',
     template: 'print("Hello, World!")'
   },
   { 
     id: 'java', 
     name: 'Java', 
-    version: '15.0.2', 
+    version: '22', 
     extension: 'java', 
     color: '#ed8b00',
     monacoLanguage: 'java',
+    wandboxCompiler: 'openjdk-jdk-22+36',
     template: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}'
   },
   { 
     id: 'cpp', 
     name: 'C++', 
-    version: '10.2.0', 
+    version: 'GCC Head', 
     extension: 'cpp', 
     color: '#00599c',
     monacoLanguage: 'cpp',
+    wandboxCompiler: 'gcc-head',
     template: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}'
   },
   { 
     id: 'c', 
     name: 'C', 
-    version: '10.2.0', 
+    version: 'GCC Head', 
     extension: 'c', 
     color: '#a8b9cc',
     monacoLanguage: 'c',
+    wandboxCompiler: 'gcc-head-c',
     template: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}'
   },
   { 
@@ -63,42 +68,47 @@ const LANGUAGES = [
     extension: 'cs', 
     color: '#239120',
     monacoLanguage: 'csharp',
+    wandboxCompiler: 'mono-6.12.0.199',
     template: 'using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("Hello, World!");\n    }\n}'
   },
   { 
     id: 'php', 
     name: 'PHP', 
-    version: '8.2.3', 
+    version: '8.3.12', 
     extension: 'php', 
     color: '#777bb4',
     monacoLanguage: 'php',
+    wandboxCompiler: 'php-8.3.12',
     template: '<?php\necho "Hello, World!";\n?>'
   },
   { 
     id: 'ruby', 
     name: 'Ruby', 
-    version: '3.0.1', 
+    version: '3.4.1', 
     extension: 'rb', 
     color: '#cc342d',
     monacoLanguage: 'ruby',
+    wandboxCompiler: 'ruby-3.4.1',
     template: 'puts "Hello, World!"'
   },
   { 
     id: 'go', 
     name: 'Go', 
-    version: '1.16.2', 
+    version: '1.23.2', 
     extension: 'go', 
     color: '#00add8',
     monacoLanguage: 'go',
+    wandboxCompiler: 'go-1.23.2',
     template: 'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}'
   },
   { 
     id: 'rust', 
     name: 'Rust', 
-    version: '1.68.2', 
+    version: '1.82.0', 
     extension: 'rs', 
     color: '#000000',
     monacoLanguage: 'rust',
+    wandboxCompiler: 'rust-1.82.0',
     template: 'fn main() {\n    println!("Hello, World!");\n}'
   }
 ]
@@ -420,23 +430,15 @@ const OnlineCompiler = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          language: selectedLanguage.id,
-          version: selectedLanguage.version,
-          files: [
-            {
-              name: `main.${selectedLanguage.extension}`,
-              content: code,
-            },
-          ],
+          code,
+          compiler: selectedLanguage.wandboxCompiler,
           stdin: input,
-          run_timeout: 10000,
-          compile_timeout: 20000,
-          run_memory_limit: 128000000,
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errData = await response.json().catch(() => null)
+        throw new Error(errData?.error || `HTTP error! status: ${response.status}`)
       }
 
       const result = await response.json()
@@ -444,21 +446,17 @@ const OnlineCompiler = () => {
       setExecutionTime(endTime - startTime)
 
       let outputText = ''
-      
-      if (result.run && result.run.stdout) {
-        outputText += result.run.stdout
-      }
-      
-      if (result.run && result.run.stderr) {
-        outputText += result.run.stderr
+
+      if (result.compiler_message) {
+        outputText += result.compiler_message
       }
 
-      if (result.compile && result.compile.stdout) {
-        outputText += result.compile.stdout
+      if (result.program_output) {
+        outputText += result.program_output
       }
 
-      if (result.compile && result.compile.stderr) {
-        outputText += result.compile.stderr
+      if (result.program_error) {
+        outputText += result.program_error
       }
       
       if (!outputText) {

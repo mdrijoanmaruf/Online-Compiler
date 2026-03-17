@@ -646,10 +646,10 @@ const OnlineCompiler = () => {
       return (
         <div key={node.id}>
           <div
-            className={`flex items-center gap-1 px-2 py-1 cursor-pointer rounded-sm text-xs transition-colors group
+            className={`flex items-center gap-1 px-1.5 py-0.5 cursor-pointer rounded-sm text-xs transition-colors group
               ${isActive && !isFolder ? (isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-200/60 text-purple-900') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-gray-700 hover:bg-purple-100/40')}
             `}
-            style={{ paddingLeft: `${depth * 12 + 8}px` }}
+            style={{ paddingLeft: `${depth * 10 + 6}px` }}
             onClick={() => isFolder ? toggleFolder(node.id) : openFile(node)}
             onContextMenu={(e) => handleContextMenu(e, node.id)}
           >
@@ -711,15 +711,15 @@ const OnlineCompiler = () => {
       <div className="h-full w-full flex flex-col overflow-hidden relative z-10">
         <div className={`${glassStyle} flex-1 flex flex-col min-h-0 overflow-hidden p-1 sm:p-2 lg:p-3`}>
           {/* ─── Header / Toolbar ──────────────────────────────────────── */}
-          <div className={`flex items-center justify-between gap-2 mb-1 sm:mb-2 px-2 sm:px-3 py-1.5 sm:py-2 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
-            <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className={`flex items-center justify-between gap-2 mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setSidebarOpen(p => !p)}
-                  className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                  className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
                   title="Toggle file explorer"
                 >
-                  <FiSidebar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <FiSidebar className="h-3.5 w-3.5" />
                 </button>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguage.color }} />
@@ -727,38 +727,38 @@ const OnlineCompiler = () => {
                     value={selectedLanguage.id}
                     onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
                     title="Select programming language"
-                    className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs sm:text-sm min-w-0 shrink`}
+                    className={`px-1.5 sm:px-2 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs min-w-0 shrink`}
                   >
                   {LANGUAGES.map(lang => (
                     <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
                   ))}
                   </select>
                 </div>
-                <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-2 py-1 rounded ${ts.borderLight} border`}>Ctrl+Enter</div>
+                <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border`}>Ctrl+Enter</div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1">
-                <button onClick={toggleTheme} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
-                  {isDarkMode ? <FiSun className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <FiMoon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                <button onClick={toggleTheme} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+                  {isDarkMode ? <FiSun className="h-3.5 w-3.5" /> : <FiMoon className="h-3.5 w-3.5" />}
                 </button>
-                <button onClick={copyCode} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
-                  <FiCopy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <button onClick={copyCode} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
+                  <FiCopy className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={downloadZip} className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
-                  <FiDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <button onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
+                  <FiDownload className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={executeCode}
                   disabled={isExecuting}
-                  className={`px-2 sm:px-3 py-1 sm:py-1.5 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded-md transition-all duration-150 flex items-center space-x-1 sm:space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs sm:text-sm font-medium`}
+                  className={`px-2 py-1 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded transition-all duration-150 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs font-medium`}
                 >
                   {isExecuting
-                    ? <><FiRefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /><span className="hidden sm:inline">Running...</span><span className="sm:hidden">Run</span></>
-                    : <><FiPlay className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline">Run</span></>
+                    ? <><FiRefreshCw className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Running...</span><span className="sm:hidden">Run</span></>
+                    : <><FiPlay className="h-3.5 w-3.5" /><span className="hidden sm:inline">Run</span></>
                   }
                 </button>
                 {executionTime && (
-                  <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-2 py-1 rounded`}>
-                    <FiClock className="h-2.5 w-2.5 sm:h-3 sm:w-3" /><span>{executionTime}ms</span>
+                  <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-1.5 py-0.5 rounded`}>
+                    <FiClock className="h-3 w-3" /><span>{executionTime}ms</span>
                   </div>
                 )}
               </div>
@@ -774,7 +774,7 @@ const OnlineCompiler = () => {
                 className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
                 style={isMobile ? undefined : { width: '200px' }}
               >
-                <div className={`flex items-center justify-between px-3 py-2 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
+                <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
                   <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
                   <div className="flex items-center gap-1">
                     <button onClick={() => addFile(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New File"><FiFilePlus className="w-3.5 h-3.5" /></button>
@@ -784,7 +784,7 @@ const OnlineCompiler = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar" onContextMenu={(e) => handleContextMenu(e, null)}>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden py-0.5 custom-scrollbar" onContextMenu={(e) => handleContextMenu(e, null)}>
                   {fileTree.length === 0 ? (
                     <div className={`p-4 text-center text-xs ${ts.textMuted}`}>No files yet. Click + to add one.</div>
                   ) : (
@@ -797,17 +797,17 @@ const OnlineCompiler = () => {
             {/* ─── Context Menu ──────────────────────────────────────── */}
             {contextMenu && (
               <div
-                className={`fixed z-50 rounded-lg shadow-xl border ${isDarkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'} py-1 min-w-40`}
+                className={`fixed z-50 rounded-lg shadow-xl border ${isDarkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'} py-0.5 min-w-36`}
                 style={{ left: contextMenu.x, top: contextMenu.y }}
               >
                 <button
-                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
+                  className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                   onClick={() => { addFile(contextMenu.nodeId && findNode(fileTree, contextMenu.nodeId)?.type === 'folder' ? contextMenu.nodeId : null); setContextMenu(null) }}
                 >
                   <FiFilePlus className="w-3.5 h-3.5" /> New File
                 </button>
                 <button
-                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
+                  className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                   onClick={() => { addFolder(contextMenu.nodeId && findNode(fileTree, contextMenu.nodeId)?.type === 'folder' ? contextMenu.nodeId : null); setContextMenu(null) }}
                 >
                   <FiFolderPlus className="w-3.5 h-3.5" /> New Folder
@@ -816,13 +816,13 @@ const OnlineCompiler = () => {
                   <>
                     <div className={`border-t my-1 ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`} />
                     <button
-                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
+                      className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                       onClick={() => { startRename(contextMenu.nodeId!); setContextMenu(null) }}
                     >
                       <FiEdit2 className="w-3.5 h-3.5" /> Rename
                     </button>
                     <button
-                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 text-red-400 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-red-50'}`}
+                      className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 text-red-400 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-red-50'}`}
                       onClick={() => { deleteNode(contextMenu.nodeId!); setContextMenu(null) }}
                     >
                       <FiTrash2 className="w-3.5 h-3.5" /> Delete
@@ -833,15 +833,15 @@ const OnlineCompiler = () => {
             )}
 
             {/* ─── Editor + Output Area ──────────────────────────────── */}
-            <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-1 lg:gap-0">
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-0">
               {/* Code Editor Section */}
-              <div className="flex flex-col min-w-0 w-full lg:w-auto mb-1 lg:mb-0" style={{
+              <div className="flex flex-col min-w-0 w-full lg:w-auto" style={{
                 width: isMobile ? '100%' : `${editorWidth}%`,
                 height: isMobile ? `${mobileEditorHeight}%` : 'auto',
                 flex: isMobile ? 'none' : undefined,
               }}>
                 {/* Tabs */}
-                <div className={`flex items-center overflow-x-auto ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`} style={{ minHeight: '32px' }}>
+                <div className={`flex items-center overflow-x-auto ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`} style={{ minHeight: '28px' }}>
                   {openTabs.map(tabId => {
                     const node = findNode(fileTree, tabId)
                     if (!node) return null
@@ -849,7 +849,7 @@ const OnlineCompiler = () => {
                     return (
                       <div
                         key={tabId}
-                        className={`flex items-center gap-1 px-3 py-1.5 text-xs cursor-pointer border-r shrink-0 transition-colors
+                        className={`flex items-center gap-1 px-2 py-1 text-xs cursor-pointer border-r shrink-0 transition-colors
                           ${isActiveTab
                             ? (isDarkMode ? 'bg-white/10 text-white border-white/10' : 'bg-white text-gray-900 border-purple-200/60')
                             : (isDarkMode ? 'text-slate-400 hover:bg-white/5 border-white/5' : 'text-gray-500 hover:bg-purple-50 border-pink-200/40')
@@ -918,7 +918,7 @@ const OnlineCompiler = () => {
 
               {/* Mobile Horizontal Resizer */}
               {isMobile && (
-                <div className={`h-2 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-1 select-none`}
+                <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
                   onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }} style={{ cursor: 'row-resize' }}>
                   <div className={`h-0.5 w-12 ${ts.resizerBar} group-active:bg-white/70 rounded-full transition-colors duration-200`} />
                 </div>
@@ -926,7 +926,7 @@ const OnlineCompiler = () => {
 
               {/* Desktop Resizable Divider */}
               <div
-                className={`${isMobile ? 'hidden' : 'lg:flex'} w-1 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group absolute top-0 bottom-0 z-10`}
+                className={`${isMobile ? 'hidden' : 'lg:flex'} w-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group absolute top-0 bottom-0 z-10`}
                 style={{ left: `${editorWidth}%`, transform: 'translateX(-50%)' }}
                 onMouseDown={handleMouseDown}
               >
@@ -941,9 +941,9 @@ const OnlineCompiler = () => {
               }}>
                 {/* Input Section */}
                 <div className="flex flex-col overflow-hidden" style={{ height: isMobile ? `${mobileOutputHeight}%` : `${outputHeight}%` }}>
-                  <div className={`flex items-center justify-between mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
+                  <div className={`flex items-center justify-between mb-0.5 px-2 py-1 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
                     <div className="flex items-center space-x-1.5">
-                      <FiTerminal className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isDarkMode ? 'text-blue-400' : 'text-purple-600'}`} />
+                      <FiTerminal className={`h-3.5 w-3.5 ${isDarkMode ? 'text-blue-400' : 'text-purple-600'}`} />
                       <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-purple-800'}`}>Input (stdin)</span>
                     </div>
                     <button
@@ -951,13 +951,13 @@ const OnlineCompiler = () => {
                         try { const t = await navigator.clipboard.readText(); setInput(t) }
                         catch { Swal.fire({ title: 'Paste Failed', text: 'Unable to access clipboard.', icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' }) }
                       }}
-                      className={`p-1 sm:p-1.5 rounded-md ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                      className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
                       title="Paste from Clipboard"
-                    ><FiCode className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></button>
+                    ><FiCode className="h-3.5 w-3.5" /></button>
                   </div>
                   <textarea
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    className={`flex-1 w-full p-1.5 sm:p-4 ${ts.bgInput} border ${ts.border} rounded ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} font-mono text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-150 ${isDarkMode ? 'placeholder-slate-500' : 'placeholder-gray-500'} overflow-x-hidden min-h-0`}
+                    className={`flex-1 w-full p-2 sm:p-3 ${ts.bgInput} border ${ts.border} rounded ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} font-mono text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-150 ${isDarkMode ? 'placeholder-slate-500' : 'placeholder-gray-500'} overflow-x-hidden min-h-0`}
                     placeholder="Program input (stdin)..." spellCheck={false}
                     style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255, 255, 255, 0.8)' }}
                   />
@@ -965,39 +965,39 @@ const OnlineCompiler = () => {
 
                 {/* Mobile Input/Output Resizer */}
                 {isMobile && (
-                  <div className={`h-2 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-1 select-none`}
+                  <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
                     onMouseDown={handleVerticalMouseDown} onTouchStart={(e) => { setIsVerticalResizing(true); e.preventDefault() }} style={{ cursor: 'row-resize' }}>
                     <div className={`h-0.5 w-12 ${ts.resizerBar} group-active:bg-white/70 rounded-full transition-colors duration-200`} />
                   </div>
                 )}
 
                 {/* Desktop Vertical Resizer */}
-                <div className={`${isMobile ? 'hidden' : 'lg:flex'} h-0.5 ${ts.resizer} cursor-row-resize transition-colors duration-200 rounded-full items-center justify-center group my-1`} onMouseDown={handleVerticalMouseDown}>
+                <div className={`${isMobile ? 'hidden' : 'lg:flex'} h-px ${ts.resizer} cursor-row-resize transition-colors duration-200 items-center justify-center group my-0.5`} onMouseDown={handleVerticalMouseDown}>
                   <div className={`h-0.5 w-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
                 </div>
 
                 {/* Output Section */}
                 <div className="flex flex-col overflow-hidden flex-1" style={{ height: isMobile ? `${100 - mobileOutputHeight}%` : undefined }}>
-                  <div className={`flex items-center justify-between mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
+                  <div className={`flex items-center justify-between mb-0.5 px-2 py-1 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
                     <div className="flex items-center space-x-1.5">
-                      <FiTerminal className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isDarkMode ? 'text-green-400' : 'text-emerald-600'}`} />
+                      <FiTerminal className={`h-3.5 w-3.5 ${isDarkMode ? 'text-green-400' : 'text-emerald-600'}`} />
                       <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-emerald-800'}`}>Output</span>
                     </div>
                     {output && (
                       <div className={`flex items-center space-x-1 text-xs ${ts.textMuted}`}>
-                        <FiZap className="h-3 w-3 sm:h-4 sm:w-4" /><span>Ready</span>
+                        <FiZap className="h-3 w-3" /><span>Ready</span>
                       </div>
                     )}
                   </div>
                   <div className={`flex-1 relative rounded overflow-hidden ${ts.border} border min-h-0`}>
                     <div className={`absolute inset-0 ${isDarkMode ? 'from-slate-900/40 to-slate-800/40' : 'bg-white'} pointer-events-none`} />
-                    <div className={`relative h-full p-1.5 sm:p-4 ${ts.bgInput} font-mono text-xs whitespace-pre-wrap overflow-y-auto overflow-x-hidden ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} custom-scrollbar`}
+                    <div className={`relative h-full p-2 sm:p-3 ${ts.bgInput} font-mono text-xs whitespace-pre-wrap overflow-y-auto overflow-x-hidden ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} custom-scrollbar`}
                       style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255, 255, 255, 0.6)' }}>
                       {output || (
                         <div className={`${isDarkMode ? 'text-slate-400' : 'text-gray-500'} italic flex items-center justify-center h-full`}>
                           <div className="text-center">
-                            <FiTerminal className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 opacity-30" />
-                            <p className="text-xs sm:text-sm">Output will appear here...</p>
+                            <FiTerminal className="h-8 w-8 mx-auto mb-1.5 opacity-30" />
+                            <p className="text-xs">Output will appear here...</p>
                           </div>
                         </div>
                       )}

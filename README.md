@@ -1,23 +1,27 @@
 # Online Compiler
 
-A fast, modern, browser-based code editor and compiler supporting 10 programming languages. Built with Next.js, Monaco Editor, and the Wandbox API.
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org) [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**Live:** [compiler.rijoan.com](https://compiler.rijoan.com)  |  **Repo:** [github.com/mdrijoanmaruf/Online-Compiler](https://github.com/mdrijoanmaruf/Online-Compiler)
+A fast, modern, browser-based code editor and compiler supporting **10 programming languages** built with Next.js, Monaco Editor, and the Wandbox API.
+
+>  **Live:** [compiler.rijoan.com](https://compiler.rijoan.com)   **Repo:** [github.com/mdrijoanmaruf/Online-Compiler](https://github.com/mdrijoanmaruf/Online-Compiler)
 
 ---
 
 ## Features
 
-- **10 Languages** - JavaScript, Python, Java, C++, C, C#, PHP, Ruby, Go, Rust
-- **Monaco Editor** - VS Code-grade editor with syntax highlighting, IntelliSense, bracket matching, and code folding
-- **File / Folder System** - create, rename, delete files and folders; open multiple files in tabs
-- **Auto Language Detection** - compiler switches automatically based on file extension
-- **Boilerplate Templates** - new files are pre-filled with a Hello World starter for the detected language
-- **ZIP Download** - download a single file or the entire project as a project.zip
-- **Stdin Support** - provide program input before execution
-- **Resizable Panels** - drag to resize the editor, input, and output panes (desktop and mobile)
-- **Dark / Light Theme** - toggle between themes; preference saved in localStorage
-- **Keyboard Shortcuts** - Ctrl+Enter to run, Ctrl+D/Ctrl+U to duplicate lines, Ctrl+Alt+F to format
+| Feature | Description |
+|---|---|
+| **10 Languages** | JavaScript, Python, Java, C++, C, C#, PHP, Ruby, Go, Rust |
+| **Monaco Editor** | VS Code engine with syntax highlighting, IntelliSense, bracket matching |
+| **File / Folder System** | Create, rename, delete files and folders; edit in tabs |
+| **Auto Language Detection** | Compiler and highlighting switch on file extension change |
+| **Boilerplate Templates** | New files auto-filled with Hello World for the detected language |
+| **ZIP Download** | Download one file or a full project as project.zip |
+| **Stdin Support** | Provide program input before execution |
+| **Resizable Panels** | Drag to resize editor, input, and output panes |
+| **Dark / Light Theme** | Toggle themes; preference saved to localStorage |
+| **Shortcuts** | Ctrl+Enter run, Ctrl+D/U duplicate lines, Ctrl+Alt+F format |
 
 ---
 
@@ -25,19 +29,19 @@ A fast, modern, browser-based code editor and compiler supporting 10 programming
 
 | Layer | Technology |
 |---|---|
-| Framework | [Next.js 16](https://nextjs.org) (App Router, TypeScript) |
+| Framework | [Next.js 16](https://nextjs.org) App Router, TypeScript |
 | Editor | [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react) |
-| Execution | [Wandbox API](https://wandbox.org) via Next.js API route proxy |
+| Execution | [Wandbox API](https://wandbox.org) via /api/execute proxy route |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
-| Icons | [react-icons](https://react-icons.github.io/react-icons) (Feather) |
-| Zip Download | [JSZip](https://stuk.github.io/jszip) |
+| Icons | [react-icons](https://react-icons.github.io/react-icons) Feather set |
+| Zip Export | [JSZip](https://stuk.github.io/jszip) |
 | Alerts | [SweetAlert2](https://sweetalert2.github.io) |
 
 ---
 
 ## Supported Languages
 
-| Language | Version | Compiler |
+| Language | Version | Wandbox Compiler |
 |---|---|---|
 | JavaScript | Node.js 20.17.0 | nodejs-20.17.0 |
 | Python | 3.12.7 | cpython-3.12.7 |
@@ -61,53 +65,64 @@ A fast, modern, browser-based code editor and compiler supporting 10 programming
 
 ### Installation
 
-`ash
+```bash
 git clone https://github.com/mdrijoanmaruf/Online-Compiler.git
 cd Online-Compiler
 npm install
-`
+```
 
 ### Development
 
-`ash
+```bash
 npm run dev
-`
+```
 
-Open http://localhost:3000 in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Production Build
 
-`ash
+```bash
 npm run build
 npm start
-`
+```
 
 ---
 
 ## Project Structure
 
-`
+```
 online-compiler/
-  app/
-    api/execute/route.ts    # Wandbox API proxy
-    globals.css
-    layout.tsx
-    page.tsx                # Main compiler component
-  public/
-  next.config.ts
-  package.json
-`
+├── app/
+│   ├── api/execute/route.ts    # Wandbox API proxy
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx              # Main compiler component
+├── public/
+├── next.config.ts
+└── package.json
+```
 
 ---
 
 ## How It Works
 
-1. User writes code in the Monaco Editor
-2. On Run (Ctrl+Enter), code is sent to /api/execute Next.js route
-3. The route forwards the request to Wandbox free compilation service
-4. The response (stdout, stderr, compiler messages) is displayed in the Output panel
+1. **Write** code in the Monaco Editor and optionally provide stdin input
+2. **Run** via button or Ctrl+Enter the code is sent to /api/execute
+3. **Proxy** the route forwards to [Wandbox](https://wandbox.org) free compilation service
+4. **Output** stdout, stderr, and compiler messages appear in the Output panel
 
-The API proxy prevents CORS issues and keeps the Wandbox endpoint hidden from the client.
+> The API proxy prevents CORS issues and keeps the Wandbox endpoint hidden from the client.
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| Ctrl+Enter | Run code |
+| Ctrl+D | Duplicate line down |
+| Ctrl+U | Duplicate line up |
+| Ctrl+Alt+F | Format document |
 
 ---
 

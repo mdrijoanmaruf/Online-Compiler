@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor, { type OnMount } from '@monaco-editor/react'
 import {
   FiPlay, FiDownload, FiRefreshCw,
-  FiCode, FiTerminal, FiClock, FiZap,
+  FiCode, FiClock, FiZap,
   FiCopy, FiSun, FiMoon, FiFile, FiFolder,
   FiChevronRight, FiChevronDown,
   FiTrash2, FiEdit2, FiFolderPlus, FiFilePlus,
@@ -12,6 +12,10 @@ import {
 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import JSZip from 'jszip'
+import type { ProblemPayload, TestCaseState } from './types/problem'
+import ProblemPanel from './components/ProblemPanel'
+import ProblemMetaBar from './components/ProblemMetaBar'
+import TestCasePanel from './components/TestCasePanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FileNode {
@@ -148,6 +152,10 @@ function sortTree(tree: FileNode[]): FileNode[] {
   }).map(n => n.children ? { ...n, children: sortTree(n.children) } : n)
 }
 
+function makeDefaultTestCase(id = 1): TestCaseState {
+  return { id, label: `Sample ${id}`, input: '', expectedOutput: '', actualOutput: '', status: 'idle' }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Component
 // ═════════════════════════════════════════════════════════════════════════════
@@ -157,17 +165,12 @@ const OnlineCompiler = () => {
   const [fileTree, setFileTree] = useState<FileNode[]>(() => makeDefaultTree(LANGUAGES[0]))
   const [activeFileId, setActiveFileId] = useState<string>('')
   const [openTabs, setOpenTabs] = useState<string[]>([])
-  const [input, setInput] = useState('')
-  const [output, setOutput] = useState('')
   const [isExecuting, setIsExecuting] = useState(false)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
   const [editorWidth, setEditorWidth] = useState(55)
-  const [outputHeight, setOutputHeight] = useState(60)
   const [isResizing, setIsResizing] = useState(false)
-  const [isVerticalResizing, setIsVerticalResizing] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [mobileEditorHeight, setMobileEditorHeight] = useState(40)
-  const [mobileOutputHeight, setMobileOutputHeight] = useState(60)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -175,7 +178,14 @@ const OnlineCompiler = () => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string | null } | null>(null)
   const [isDarkMode, setIsDarkMode] = useState(true)
 
-  const editorRef = useRef<{ editor: any; monaco: any } | null>(null)
+  // ─── Problem + Test Case State ───────────────────────────────────────────
+  const [problem, setProblem] = useState<ProblemPayload | null>(null)
+  const [problemPanelOpen, setProblemPanelOpen] = useState(false)
+  const [testCases, setTestCases] = useState<TestCaseState[]>([makeDefaultTestCase(1)])
+  const [activeTestCase, setActiveTestCase] = useState(0)
+  const [isRunningAll, setIsRunningAll] = useState(false)
+
+  const editorRef = useRef<{ editor: Parameters<OnMount>[0]; monaco: Parameters<OnMount>[1] } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const outputContainerRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
@@ -212,11 +222,71 @@ const OnlineCompiler = () => {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Load theme from localStorage (client only) ────────────────────────
+  // ─── Load theme from localStorage ─────────────────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem('compiler-theme')
     if (saved === 'light') setIsDarkMode(false)
   }, [])
+
+  // ─── Restore problem from localStorage (persist across refreshes) ──────
+  useEffect(() => {
+    const saved = localStorage.getItem('cf-active-problem')
+    if (!saved) return
+    try {
+      const payload: ProblemPayload = JSON.parse(saved)
+      const age = Date.now() - payload.scrapeTimestamp
+      if (age > 86400000) { localStorage.removeItem('cf-active-problem'); return }
+      loadProblem(payload)
+      Swal.fire({
+        toast: true, position: 'top-end', icon: 'info', showConfirmButton: false,
+        timer: 3000, timerProgressBar: true,
+        title: `Problem restored: ${payload.problemName}`,
+        background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
+      })
+    } catch { /* ignore */ }
+  }, []) // run once on mount — intentionally omits loadProblem from deps
+
+  // ─── Listen for extension event ────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const payload = (e as CustomEvent<ProblemPayload>).detail
+      loadProblem(payload)
+      localStorage.setItem('cf-active-problem', JSON.stringify(payload))
+      Swal.fire({
+        toast: true, position: 'top-end', icon: 'success', showConfirmButton: false,
+        timer: 2500, timerProgressBar: true,
+        title: `Loaded: ${payload.problemName}`,
+        background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
+      })
+    }
+    window.addEventListener('ext:problem-loaded', handler)
+    return () => window.removeEventListener('ext:problem-loaded', handler)
+  }, []) // run once on mount — intentionally omits loadProblem from deps
+
+  function loadProblem(payload: ProblemPayload) {
+    setProblem(payload)
+    setProblemPanelOpen(true)
+    setTestCases(payload.testCases.map(tc => ({
+      id: tc.id,
+      label: tc.label,
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      actualOutput: '',
+      status: 'idle',
+    })))
+    setActiveTestCase(0)
+    // Default to C++ for Codeforces
+    const cpp = LANGUAGES.find(l => l.id === 'cpp')
+    if (cpp) setSelectedLanguage(cpp)
+  }
+
+  function clearProblem() {
+    setProblem(null)
+    setProblemPanelOpen(false)
+    setTestCases([makeDefaultTestCase(1)])
+    setActiveTestCase(0)
+    localStorage.removeItem('cf-active-problem')
+  }
 
   // ─── Mobile check ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -251,9 +321,7 @@ const OnlineCompiler = () => {
     const t = setTimeout(() => {
       localStorage.setItem('compiler-language', selectedLanguage.id)
       localStorage.setItem('compiler-editor-width', editorWidth.toString())
-      localStorage.setItem('compiler-output-height', outputHeight.toString())
       localStorage.setItem('compiler-mobile-editor-height', mobileEditorHeight.toString())
-      localStorage.setItem('compiler-mobile-output-height', mobileOutputHeight.toString())
       localStorage.setItem('compiler-theme', isDarkMode ? 'dark' : 'light')
       localStorage.setItem('compiler-sidebar', sidebarOpen ? 'open' : 'closed')
       try { localStorage.setItem('compiler-file-tree', JSON.stringify(fileTree)) } catch { /* ignore */ }
@@ -261,7 +329,7 @@ const OnlineCompiler = () => {
       localStorage.setItem('compiler-open-tabs', JSON.stringify(openTabs))
     }, 500)
     return () => clearTimeout(t)
-  }, [selectedLanguage, editorWidth, outputHeight, mobileEditorHeight, mobileOutputHeight, isDarkMode, sidebarOpen, fileTree, activeFileId, openTabs])
+  }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, fileTree, activeFileId, openTabs])
 
   // ─── Load preferences ─────────────────────────────────────────────────
   useEffect(() => {
@@ -271,9 +339,7 @@ const OnlineCompiler = () => {
     const savedTabs = localStorage.getItem('compiler-open-tabs')
     const savedSidebar = localStorage.getItem('compiler-sidebar')
     const savedEditorWidth = localStorage.getItem('compiler-editor-width')
-    const savedOutputHeight = localStorage.getItem('compiler-output-height')
     const savedMobileEditorHeight = localStorage.getItem('compiler-mobile-editor-height')
-    const savedMobileOutputHeight = localStorage.getItem('compiler-mobile-output-height')
 
     if (savedLang) {
       const lang = LANGUAGES.find(l => l.id === savedLang)
@@ -302,9 +368,7 @@ const OnlineCompiler = () => {
 
     if (savedSidebar === 'closed') setSidebarOpen(false)
     if (savedEditorWidth) { const v = parseFloat(savedEditorWidth); if (v >= 20 && v <= 80) setEditorWidth(v) }
-    if (savedOutputHeight) { const v = parseFloat(savedOutputHeight); if (v >= 30 && v <= 85) setOutputHeight(v) }
     if (savedMobileEditorHeight) { const v = parseFloat(savedMobileEditorHeight); if (v >= 25 && v <= 75) setMobileEditorHeight(v) }
-    if (savedMobileOutputHeight) { const v = parseFloat(savedMobileOutputHeight); if (v >= 30 && v <= 85) setMobileOutputHeight(v) }
   }, [])
 
   // ─── Monaco theme on dark mode change ──────────────────────────────────
@@ -316,43 +380,27 @@ const OnlineCompiler = () => {
 
   // ─── Resizing ──────────────────────────────────────────────────────────
   const handleMouseDown = (e: React.MouseEvent) => { setIsResizing(true); e.preventDefault() }
-  const handleVerticalMouseDown = (e: React.MouseEvent) => { setIsVerticalResizing(true); e.preventDefault() }
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!containerRef.current) return
-      if (isResizing) {
-        if (isMobile) {
-          const r = containerRef.current.getBoundingClientRect()
-          setMobileEditorHeight(Math.min(Math.max(((e.clientY - r.top) / r.height) * 100, 25), 75))
-        } else {
-          const r = containerRef.current.getBoundingClientRect()
-          setEditorWidth(Math.min(Math.max(((e.clientX - r.left) / r.width) * 100, 20), 80))
-        }
-      }
-      if (isVerticalResizing && outputContainerRef.current) {
-        const r = outputContainerRef.current.getBoundingClientRect()
-        const h = ((e.clientY - r.top) / r.height) * 100
-        if (isMobile) setMobileOutputHeight(Math.min(Math.max(h, 30), 85))
-        else setOutputHeight(Math.min(Math.max(h, 30), 85))
+      if (!containerRef.current || !isResizing) return
+      if (isMobile) {
+        const r = containerRef.current.getBoundingClientRect()
+        setMobileEditorHeight(Math.min(Math.max(((e.clientY - r.top) / r.height) * 100, 25), 75))
+      } else {
+        const r = containerRef.current.getBoundingClientRect()
+        setEditorWidth(Math.min(Math.max(((e.clientX - r.left) / r.width) * 100, 20), 80))
       }
     }
     const onTouch = (e: TouchEvent) => {
-      if (!containerRef.current || !isMobile) return
+      if (!containerRef.current || !isMobile || !isResizing) return
       const t = e.touches[0]
-      if (isResizing) {
-        const r = containerRef.current.getBoundingClientRect()
-        setMobileEditorHeight(Math.min(Math.max(((t.clientY - r.top) / r.height) * 100, 25), 75))
-        e.preventDefault()
-      }
-      if (isVerticalResizing && outputContainerRef.current) {
-        const r = outputContainerRef.current.getBoundingClientRect()
-        setMobileOutputHeight(Math.min(Math.max(((t.clientY - r.top) / r.height) * 100, 30), 85))
-        e.preventDefault()
-      }
+      const r = containerRef.current.getBoundingClientRect()
+      setMobileEditorHeight(Math.min(Math.max(((t.clientY - r.top) / r.height) * 100, 25), 75))
+      e.preventDefault()
     }
-    const onUp = () => { setIsResizing(false); setIsVerticalResizing(false) }
-    if (isResizing || isVerticalResizing) {
+    const onUp = () => setIsResizing(false)
+    if (isResizing) {
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
       document.addEventListener('touchmove', onTouch, { passive: false })
@@ -364,10 +412,10 @@ const OnlineCompiler = () => {
       document.removeEventListener('touchmove', onTouch)
       document.removeEventListener('touchend', onUp)
     }
-  }, [isResizing, isVerticalResizing, isMobile])
+  }, [isResizing, isMobile])
 
   // ─── Monaco Editor mount ───────────────────────────────────────────────
-  const handleEditorDidMount = (editor: any, monaco: any) => {
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = { editor, monaco }
     monaco.editor.defineTheme('liquidGlassDark', {
       base: 'vs-dark', inherit: true,
@@ -416,44 +464,127 @@ const OnlineCompiler = () => {
       }
     })
     monaco.editor.setTheme(isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight')
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => executeCode())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runActiveTest())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => runAllTests())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => addTestCase())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketRight, () =>
+      setActiveTestCase(i => Math.min(i + 1, testCases.length - 1))
+    )
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketLeft, () =>
+      setActiveTestCase(i => Math.max(i - 1, 0))
+    )
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => editor.getAction('editor.action.copyLinesDownAction')?.run())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => editor.getAction('editor.action.copyLinesUpAction')?.run())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => editor.getAction('editor.action.formatDocument')?.run())
   }
 
-  // ─── Execute code ──────────────────────────────────────────────────────
-  const executeCode = async () => {
+  // ─── Test case helpers ─────────────────────────────────────────────────
+  const updateTestCase = useCallback((index: number, patch: Partial<TestCaseState>) => {
+    setTestCases(prev => prev.map((tc, i) => i === index ? { ...tc, ...patch } : tc))
+  }, [])
+
+  const addTestCase = useCallback(() => {
+    setTestCases(prev => {
+      const id = prev.length + 1
+      const newTc = makeDefaultTestCase(id)
+      newTc.label = `Test ${id}`
+      setActiveTestCase(prev.length)
+      return [...prev, newTc]
+    })
+  }, [])
+
+  const deleteTestCase = useCallback((index: number) => {
+    setTestCases(prev => {
+      if (prev.length <= 1) return prev
+      const next = prev.filter((_, i) => i !== index)
+      setActiveTestCase(i => Math.min(i, next.length - 1))
+      return next
+    })
+  }, [])
+
+  // ─── Run single test ───────────────────────────────────────────────────
+  const runActiveTest = useCallback(async (indexOverride?: number) => {
     if (!code.trim()) {
       Swal.fire({ title: 'No Code', text: 'Please enter some code to execute.', icon: 'warning', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#3b82f6' })
       return
     }
-    setIsExecuting(true); setOutput('Executing...'); setExecutionTime(null)
+    const idx = indexOverride ?? activeTestCase
+    updateTestCase(idx, { status: 'running', actualOutput: '' })
+    setIsExecuting(true)
+    const startTime = Date.now()
     try {
-      const startTime = Date.now()
+      const tc = testCases[idx]
       const response = await fetch('/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin: input }),
+        body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin: tc.input }),
       })
       if (!response.ok) {
         const errData = await response.json().catch(() => null)
         throw new Error(errData?.error || `HTTP error! status: ${response.status}`)
       }
       const result = await response.json()
-      setExecutionTime(Date.now() - startTime)
-      let out = ''
-      if (result.compiler_message) out += result.compiler_message
-      if (result.program_output) out += result.program_output
-      if (result.program_error) out += result.program_error
-      setOutput(out || 'Program executed successfully with no output.')
+      const elapsed = Date.now() - startTime
+      setExecutionTime(elapsed)
+
+      const hasError = !!(result.compiler_message || result.program_error)
+      const actualOutput = hasError
+        ? (result.compiler_message || result.program_error || '')
+        : (result.program_output ?? '')
+
+      let status: TestCaseState['status']
+      if (hasError) {
+        status = 'error'
+      } else if (tc.expectedOutput.trim()) {
+        status = actualOutput.trim() === tc.expectedOutput.trim() ? 'passed' : 'failed'
+      } else {
+        status = 'idle' // no expected output — just show actual
+      }
+
+      updateTestCase(idx, { actualOutput, status, executionTime: elapsed })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      console.error('Execution error:', error)
-      setOutput(`Error: ${message}\n\nPlease check your internet connection and try again.`)
-      Swal.fire({ title: 'Execution Failed', text: 'Failed to execute code. Please try again.', icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' })
-    } finally { setIsExecuting(false) }
-  }
+      updateTestCase(idx, { actualOutput: `Error: ${message}`, status: 'error' })
+      Swal.fire({ title: 'Execution Failed', text: message, icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' })
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [code, activeTestCase, testCases, selectedLanguage.wandboxCompiler, isDarkMode, updateTestCase])
+
+  // ─── Run all tests ─────────────────────────────────────────────────────
+  const runAllTests = useCallback(async () => {
+    if (!code.trim()) return
+    setIsRunningAll(true)
+    for (let i = 0; i < testCases.length; i++) {
+      updateTestCase(i, { status: 'running', actualOutput: '' })
+      const startTime = Date.now()
+      try {
+        const response = await fetch('/api/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin: testCases[i].input }),
+        })
+        const result = await response.json()
+        const elapsed = Date.now() - startTime
+        const hasError = !!(result.compiler_message || result.program_error)
+        const actualOutput = hasError
+          ? (result.compiler_message || result.program_error || '')
+          : (result.program_output ?? '')
+        let status: TestCaseState['status']
+        if (hasError) {
+          status = 'error'
+        } else if (testCases[i].expectedOutput.trim()) {
+          status = actualOutput.trim() === testCases[i].expectedOutput.trim() ? 'passed' : 'failed'
+        } else {
+          status = 'idle'
+        }
+        updateTestCase(i, { actualOutput, status, executionTime: elapsed })
+      } catch {
+        updateTestCase(i, { actualOutput: 'Network error', status: 'error' })
+      }
+    }
+    setIsRunningAll(false)
+  }, [code, testCases, selectedLanguage.wandboxCompiler, updateTestCase])
 
   // ─── Language change ───────────────────────────────────────────────────
   const handleLanguageChange = (language: typeof LANGUAGES[number]) => {
@@ -464,7 +595,6 @@ const OnlineCompiler = () => {
     setActiveFileId(first.id)
     setOpenTabs([first.id])
     setExpandedFolders(new Set())
-    setOutput('')
     setExecutionTime(null)
   }
 
@@ -565,7 +695,6 @@ const OnlineCompiler = () => {
       const node = findNode(next, renamingId)
       if (node) {
         node.name = renameValue.trim()
-        // Auto-fill boilerplate when file is empty (e.g. just created)
         if (node.type === 'file' && !node.content?.trim()) {
           const lang = getLanguageByExtension(node.name)
           if (lang) node.content = lang.template
@@ -676,10 +805,10 @@ const OnlineCompiler = () => {
             )}
             {!isRenaming && (
               <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                <button onClick={(e) => { e.stopPropagation(); startRename(node.id) }} className="p-0.5 rounded hover:bg-white/10" title="Rename">
+                <button type="button" onClick={(e) => { e.stopPropagation(); startRename(node.id) }} className="p-0.5 rounded hover:bg-white/10" title="Rename">
                   <FiEdit2 className="w-3 h-3" />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="p-0.5 rounded hover:bg-red-500/20 text-red-400" title="Delete">
+                <button type="button" onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="p-0.5 rounded hover:bg-red-500/20 text-red-400" title="Delete">
                   <FiTrash2 className="w-3 h-3" />
                 </button>
               </div>
@@ -712,43 +841,63 @@ const OnlineCompiler = () => {
         <div className={`${glassStyle} flex-1 flex flex-col min-h-0 overflow-hidden p-1 sm:p-2 lg:p-3`}>
           {/* ─── Header / Toolbar ──────────────────────────────────────── */}
           <div className={`flex items-center justify-between gap-2 mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-              <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                 <button
+                  type="button"
                   onClick={() => setSidebarOpen(p => !p)}
-                  className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                  className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 shrink-0`}
                   title="Toggle file explorer"
                 >
                   <FiSidebar className="h-3.5 w-3.5" />
                 </button>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguage.color }} />
-                  <select
-                    value={selectedLanguage.id}
-                    onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
-                    title="Select programming language"
-                    className={`px-1.5 sm:px-2 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs min-w-0 shrink`}
-                  >
-                  {LANGUAGES.map(lang => (
-                    <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
-                  ))}
-                  </select>
-                </div>
-                <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border`}>Ctrl+Enter</div>
+
+                {/* CF metadata bar (shown when problem is loaded) */}
+                {problem ? (
+                  <ProblemMetaBar problem={problem} isDark={isDarkMode} onClear={clearProblem} />
+                ) : (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguage.color }} />
+                    <select
+                      value={selectedLanguage.id}
+                      onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
+                      title="Select programming language"
+                      className={`px-1.5 sm:px-2 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs min-w-0 shrink`}
+                    >
+                      {LANGUAGES.map(lang => (
+                        <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
-              <div className="flex items-center gap-0.5 sm:gap-1">
-                <button onClick={toggleTheme} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                <button type="button" onClick={toggleTheme} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
                   {isDarkMode ? <FiSun className="h-3.5 w-3.5" /> : <FiMoon className="h-3.5 w-3.5" />}
                 </button>
-                <button onClick={copyCode} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
+                <button type="button" onClick={copyCode} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
                   <FiCopy className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
+                <button type="button" onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
                   <FiDownload className="h-3.5 w-3.5" />
                 </button>
+                {/* Problem panel toggle (shown when problem loaded) */}
+                {problem && (
+                  <button
+                    type="button"
+                    onClick={() => setProblemPanelOpen(p => !p)}
+                    className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${problemPanelOpen ? 'text-blue-400' : ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                    title="Toggle problem statement"
+                  >
+                    <FiCode className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
-                  onClick={executeCode}
-                  disabled={isExecuting}
+                  type="button"
+                  onClick={() => runActiveTest()}
+                  disabled={isExecuting || isRunningAll}
                   className={`px-2 py-1 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded transition-all duration-150 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs font-medium`}
                 >
                   {isExecuting
@@ -768,19 +917,23 @@ const OnlineCompiler = () => {
           {/* ─── Main Content ─────────────────────────────────────────── */}
           <div ref={containerRef} className="flex-1 flex flex-col lg:flex-row min-h-0 relative gap-0">
 
+            {/* ─── Problem Panel (left) ──────────────────────────────── */}
+            {problem && problemPanelOpen && !isMobile && (
+              <ProblemPanel problem={problem} isDark={isDarkMode} onClose={() => setProblemPanelOpen(false)} />
+            )}
+
             {/* ─── File Explorer Sidebar ─────────────────────────────── */}
             {sidebarOpen && (
               <div
-                className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
-                style={isMobile ? undefined : { width: '200px' }}
+                className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0 w-50'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
               >
                 <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
                   <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => addFile(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New File"><FiFilePlus className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => addFolder(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New Folder"><FiFolderPlus className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => addFile(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New File"><FiFilePlus className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => addFolder(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New Folder"><FiFolderPlus className="w-3.5 h-3.5" /></button>
                     {isMobile && (
-                      <button onClick={() => setSidebarOpen(false)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="Close"><FiX className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => setSidebarOpen(false)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="Close"><FiX className="w-3.5 h-3.5" /></button>
                     )}
                   </div>
                 </div>
@@ -801,12 +954,14 @@ const OnlineCompiler = () => {
                 style={{ left: contextMenu.x, top: contextMenu.y }}
               >
                 <button
+                  type="button"
                   className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                   onClick={() => { addFile(contextMenu.nodeId && findNode(fileTree, contextMenu.nodeId)?.type === 'folder' ? contextMenu.nodeId : null); setContextMenu(null) }}
                 >
                   <FiFilePlus className="w-3.5 h-3.5" /> New File
                 </button>
                 <button
+                  type="button"
                   className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                   onClick={() => { addFolder(contextMenu.nodeId && findNode(fileTree, contextMenu.nodeId)?.type === 'folder' ? contextMenu.nodeId : null); setContextMenu(null) }}
                 >
@@ -816,12 +971,14 @@ const OnlineCompiler = () => {
                   <>
                     <div className={`border-t my-1 ${isDarkMode ? 'border-slate-600' : 'border-gray-200'}`} />
                     <button
+                      type="button"
                       className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${isDarkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
                       onClick={() => { startRename(contextMenu.nodeId!); setContextMenu(null) }}
                     >
                       <FiEdit2 className="w-3.5 h-3.5" /> Rename
                     </button>
                     <button
+                      type="button"
                       className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 text-red-400 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-red-50'}`}
                       onClick={() => { deleteNode(contextMenu.nodeId!); setContextMenu(null) }}
                     >
@@ -832,7 +989,7 @@ const OnlineCompiler = () => {
               </div>
             )}
 
-            {/* ─── Editor + Output Area ──────────────────────────────── */}
+            {/* ─── Editor + Test Case Area ───────────────────────────── */}
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-0">
               {/* Code Editor Section */}
               <div className="flex flex-col min-w-0 w-full lg:w-auto" style={{
@@ -841,7 +998,7 @@ const OnlineCompiler = () => {
                 flex: isMobile ? 'none' : undefined,
               }}>
                 {/* Tabs */}
-                <div className={`flex items-center overflow-x-auto ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`} style={{ minHeight: '28px' }}>
+                <div className={`flex items-center overflow-x-auto min-h-7 ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`}>
                   {openTabs.map(tabId => {
                     const node = findNode(fileTree, tabId)
                     if (!node) return null
@@ -859,6 +1016,7 @@ const OnlineCompiler = () => {
                         <FiFile className={`w-3 h-3 shrink-0 ${getFileIconColor(node.name, isDarkMode)}`} />
                         <span className="truncate max-w-25">{node.name}</span>
                         <button
+                          type="button"
                           onClick={(e) => closeTab(tabId, e)}
                           className={`p-0.5 rounded ${isDarkMode ? 'hover:bg-white/20' : 'hover:bg-gray-200'}`}
                           title="Close tab"
@@ -873,7 +1031,7 @@ const OnlineCompiler = () => {
                 {/* Monaco Editor */}
                 <div className={`flex-1 relative rounded-b overflow-hidden ${ts.border} border border-t-0 min-h-0`} suppressHydrationWarning>
                   <div className={`absolute inset-0 ${isDarkMode ? 'from-slate-900/30 to-slate-800/30' : 'bg-white'} pointer-events-none z-0`} />
-                  <div className="relative z-10 h-full overflow-hidden" style={{ backgroundColor: isDarkMode ? 'transparent' : '#ffffff' }}>
+                  <div className={`relative z-10 h-full overflow-hidden ${isDarkMode ? '' : 'bg-white'}`}>
                     {activeFile ? (
                       <Editor
                         height="100%"
@@ -919,94 +1077,61 @@ const OnlineCompiler = () => {
               {/* Mobile Horizontal Resizer */}
               {isMobile && (
                 <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
-                  onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }} style={{ cursor: 'row-resize' }}>
+                  onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }}>
                   <div className={`h-0.5 w-12 ${ts.resizerBar} group-active:bg-white/70 rounded-full transition-colors duration-200`} />
                 </div>
               )}
 
               {/* Desktop Resizable Divider */}
               <div
-                className={`${isMobile ? 'hidden' : 'lg:flex'} w-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group absolute top-0 bottom-0 z-10`}
-                style={{ left: `${editorWidth}%`, transform: 'translateX(-50%)' }}
+                className={`${isMobile ? 'hidden' : 'lg:flex'} w-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group absolute top-0 bottom-0 z-10 -translate-x-1/2`}
+                style={{ left: `${editorWidth}%` }}
                 onMouseDown={handleMouseDown}
               >
                 <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
               </div>
 
-              {/* Output Panel */}
-              <div ref={outputContainerRef} className="flex flex-col min-w-0 w-full lg:w-auto overflow-hidden" style={{
-                width: isMobile ? '100%' : `${100 - editorWidth}%`,
-                height: isMobile ? `${100 - mobileEditorHeight}%` : 'auto',
-                flex: isMobile ? 'none' : undefined,
-              }}>
-                {/* Input Section */}
-                <div className="flex flex-col overflow-hidden" style={{ height: isMobile ? `${mobileOutputHeight}%` : `${outputHeight}%` }}>
-                  <div className={`flex items-center justify-between mb-0.5 px-2 py-1 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
-                    <div className="flex items-center space-x-1.5">
-                      <FiTerminal className={`h-3.5 w-3.5 ${isDarkMode ? 'text-blue-400' : 'text-purple-600'}`} />
-                      <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-purple-800'}`}>Input (stdin)</span>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try { const t = await navigator.clipboard.readText(); setInput(t) }
-                        catch { Swal.fire({ title: 'Paste Failed', text: 'Unable to access clipboard.', icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' }) }
-                      }}
-                      className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`}
-                      title="Paste from Clipboard"
-                    ><FiCode className="h-3.5 w-3.5" /></button>
-                  </div>
-                  <textarea
-                    value={input} onChange={(e) => setInput(e.target.value)}
-                    className={`flex-1 w-full p-2 sm:p-3 ${ts.bgInput} border ${ts.border} rounded ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} font-mono text-xs resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-150 ${isDarkMode ? 'placeholder-slate-500' : 'placeholder-gray-500'} overflow-x-hidden min-h-0`}
-                    placeholder="Program input (stdin)..." spellCheck={false}
-                    style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255, 255, 255, 0.8)' }}
-                  />
-                </div>
-
-                {/* Mobile Input/Output Resizer */}
-                {isMobile && (
-                  <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
-                    onMouseDown={handleVerticalMouseDown} onTouchStart={(e) => { setIsVerticalResizing(true); e.preventDefault() }} style={{ cursor: 'row-resize' }}>
-                    <div className={`h-0.5 w-12 ${ts.resizerBar} group-active:bg-white/70 rounded-full transition-colors duration-200`} />
-                  </div>
-                )}
-
-                {/* Desktop Vertical Resizer */}
-                <div className={`${isMobile ? 'hidden' : 'lg:flex'} h-px ${ts.resizer} cursor-row-resize transition-colors duration-200 items-center justify-center group my-0.5`} onMouseDown={handleVerticalMouseDown}>
-                  <div className={`h-0.5 w-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
-                </div>
-
-                {/* Output Section */}
-                <div className="flex flex-col overflow-hidden flex-1" style={{ height: isMobile ? `${100 - mobileOutputHeight}%` : undefined }}>
-                  <div className={`flex items-center justify-between mb-0.5 px-2 py-1 ${ts.bgPrimary} rounded ${ts.borderLight} border`}>
-                    <div className="flex items-center space-x-1.5">
-                      <FiTerminal className={`h-3.5 w-3.5 ${isDarkMode ? 'text-green-400' : 'text-emerald-600'}`} />
-                      <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-200' : 'text-emerald-800'}`}>Output</span>
-                    </div>
-                    {output && (
-                      <div className={`flex items-center space-x-1 text-xs ${ts.textMuted}`}>
-                        <FiZap className="h-3 w-3" /><span>Ready</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className={`flex-1 relative rounded overflow-hidden ${ts.border} border min-h-0`}>
-                    <div className={`absolute inset-0 ${isDarkMode ? 'from-slate-900/40 to-slate-800/40' : 'bg-white'} pointer-events-none`} />
-                    <div className={`relative h-full p-2 sm:p-3 ${ts.bgInput} font-mono text-xs whitespace-pre-wrap overflow-y-auto overflow-x-hidden ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} custom-scrollbar`}
-                      style={{ backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255, 255, 255, 0.6)' }}>
-                      {output || (
-                        <div className={`${isDarkMode ? 'text-slate-400' : 'text-gray-500'} italic flex items-center justify-center h-full`}>
-                          <div className="text-center">
-                            <FiTerminal className="h-8 w-8 mx-auto mb-1.5 opacity-30" />
-                            <p className="text-xs">Output will appear here...</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              {/* ─── Test Case Panel (replaces old input/output) ────── */}
+              <div
+                ref={outputContainerRef}
+                className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
+                style={{
+                  width: isMobile ? '100%' : `${100 - editorWidth}%`,
+                  height: isMobile ? `${100 - mobileEditorHeight}%` : 'auto',
+                  flex: isMobile ? 'none' : undefined,
+                }}
+              >
+                <TestCasePanel
+                  testCases={testCases}
+                  activeIndex={activeTestCase}
+                  isRunningAll={isRunningAll}
+                  isDark={isDarkMode}
+                  onSetActive={setActiveTestCase}
+                  onUpdateTestCase={updateTestCase}
+                  onAddTestCase={addTestCase}
+                  onDeleteTestCase={deleteTestCase}
+                  onRunOne={(i) => runActiveTest(i)}
+                  onRunAll={runAllTests}
+                />
               </div>
             </div>
           </div>
+
+          {/* Status bar hint */}
+          {!isMobile && (
+            <div className={`flex items-center gap-3 mt-1 px-2 text-[10px] ${ts.textMuted}`}>
+              <span>Ctrl+Enter: Run</span>
+              <span>Ctrl+Shift+Enter: Run All</span>
+              <span>Ctrl+T: Add test case</span>
+              <span>Ctrl+]/[: Switch test case</span>
+              {problem && (
+                <span className="ml-auto text-blue-400">
+                  <FiZap className="inline w-3 h-3 mr-0.5" />
+                  CF problem loaded
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

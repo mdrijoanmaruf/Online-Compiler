@@ -271,7 +271,7 @@ const OnlineCompiler = () => {
 
   function loadProblem(payload: ProblemPayload) {
     setProblem(payload)
-    setProblemPanelOpen(true)
+    setProblemPanelOpen(false)
     setTestCases(payload.testCases.map(tc => ({
       id: tc.id,
       label: tc.label,
@@ -836,6 +836,10 @@ const OnlineCompiler = () => {
       className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
       suppressHydrationWarning
     >
+      {/* ─── Problem Modal ─────────────────────────────────────────────── */}
+      {problem && problemPanelOpen && (
+        <ProblemPanel problem={problem} isDark={isDarkMode} onClose={() => setProblemPanelOpen(false)} />
+      )}
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-cyan-500/10 to-blue-600/10' : 'bg-linear-to-br from-pink-400/30 to-purple-500/30'} rounded-full blur-3xl animate-pulse`} />
@@ -889,16 +893,16 @@ const OnlineCompiler = () => {
                 <button type="button" onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
                   <FiDownload className="h-3.5 w-3.5" />
                 </button>
-                {/* Problem panel toggle (shown when problem loaded) */}
+                {/* View Problem modal button (shown when problem loaded) */}
                 {problem && (
                   <button
                     type="button"
-                    onClick={() => setProblemPanelOpen(p => !p)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${problemPanelOpen ? 'border-blue-500/50 text-blue-400' : `${ts.border} ${ts.textSec}`} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
-                    title="Toggle problem statement"
+                    onClick={() => setProblemPanelOpen(true)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
+                    title="View problem statement"
                   >
                     <FiCode className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Problem</span>
+                    <span className="hidden sm:inline">View Problem</span>
                   </button>
                 )}
                 <button
@@ -923,11 +927,6 @@ const OnlineCompiler = () => {
 
           {/* ─── Main Content ─────────────────────────────────────────── */}
           <div ref={containerRef} className="flex-1 flex flex-col lg:flex-row min-h-0 relative gap-0">
-
-            {/* ─── Problem Panel (left) ──────────────────────────────── */}
-            {problem && problemPanelOpen && !isMobile && (
-              <ProblemPanel problem={problem} isDark={isDarkMode} onClose={() => setProblemPanelOpen(false)} />
-            )}
 
             {/* ─── File Explorer Sidebar ─────────────────────────────── */}
             {sidebarOpen && (

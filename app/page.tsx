@@ -178,6 +178,11 @@ const OnlineCompiler = () => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string | null } | null>(null)
   const [isDarkMode, setIsDarkMode] = useState(true)
 
+  // ─── Normal I/O State ────────────────────────────────────────────────────
+  const [stdin, setStdin] = useState('')
+  const [normalOutput, setNormalOutput] = useState('')
+  const [normalOutputStatus, setNormalOutputStatus] = useState<'idle' | 'running' | 'error' | 'success'>('idle')
+
   // ─── Problem + Test Case State ───────────────────────────────────────────
   const [problem, setProblem] = useState<ProblemPayload | null>(null)
   const [problemPanelOpen, setProblemPanelOpen] = useState(false)
@@ -189,6 +194,7 @@ const OnlineCompiler = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const outputContainerRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const runModeRef = useRef<() => void>(() => {})
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const activeFile = activeFileId ? findNode(fileTree, activeFileId) : null
@@ -286,6 +292,45 @@ const OnlineCompiler = () => {
     if (cpp) setSelectedLanguage(cpp)
   }
 
+  // ─── Run in normal mode (no CF problem) ───────────────────────────────
+  const runNormal = useCallback(async () => {
+    if (!code.trim()) {
+      Swal.fire({ title: 'No Code', text: 'Please enter some code to execute.', icon: 'warning', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#3b82f6' })
+      return
+    }
+    setNormalOutputStatus('running')
+    setNormalOutput('')
+    setIsExecuting(true)
+    const startTime = Date.now()
+    try {
+      const response = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin }),
+      })
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null)
+        throw new Error(errData?.error || `HTTP error! status: ${response.status}`)
+      }
+      const result = await response.json()
+      const elapsed = Date.now() - startTime
+      setExecutionTime(elapsed)
+      const hasError = !!(result.compiler_message || result.program_error)
+      const output = hasError
+        ? (result.compiler_message || result.program_error || '')
+        : (result.program_output ?? '')
+      setNormalOutput(output)
+      setNormalOutputStatus(hasError ? 'error' : 'success')
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      setNormalOutput(`Error: ${message}`)
+      setNormalOutputStatus('error')
+      Swal.fire({ title: 'Execution Failed', text: message, icon: 'error', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#ef4444' })
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [code, stdin, selectedLanguage.wandboxCompiler, isDarkMode])
+
   function handleSubmitOnCF() {
     if (!problem || !code.trim()) return
     // Relay code + language to the extension content script via postMessage.
@@ -347,9 +392,10 @@ const OnlineCompiler = () => {
       try { localStorage.setItem('compiler-file-tree', JSON.stringify(fileTree)) } catch { /* ignore */ }
       localStorage.setItem('compiler-active-file', activeFileId)
       localStorage.setItem('compiler-open-tabs', JSON.stringify(openTabs))
+      localStorage.setItem('compiler-stdin', stdin)
     }, 500)
     return () => clearTimeout(t)
-  }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, fileTree, activeFileId, openTabs])
+  }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, fileTree, activeFileId, openTabs, stdin])
 
   // ─── Load preferences ─────────────────────────────────────────────────
   useEffect(() => {
@@ -389,6 +435,9 @@ const OnlineCompiler = () => {
     if (savedSidebar === 'closed') setSidebarOpen(false)
     if (savedEditorWidth) { const v = parseFloat(savedEditorWidth); if (v >= 20 && v <= 80) setEditorWidth(v) }
     if (savedMobileEditorHeight) { const v = parseFloat(savedMobileEditorHeight); if (v >= 25 && v <= 75) setMobileEditorHeight(v) }
+
+    const savedStdin = localStorage.getItem('compiler-stdin')
+    if (savedStdin) setStdin(savedStdin)
   }, [])
 
   // ─── Monaco theme on dark mode change ──────────────────────────────────
@@ -484,7 +533,10 @@ const OnlineCompiler = () => {
       }
     })
     monaco.editor.setTheme(isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight')
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runActiveTest())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      // Route to correct run mode — problem state captured via ref to avoid stale closure
+      runModeRef.current()
+    })
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => runAllTests())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => addTestCase())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketRight, () =>
@@ -570,6 +622,11 @@ const OnlineCompiler = () => {
       setIsExecuting(false)
     }
   }, [code, activeTestCase, testCases, selectedLanguage.wandboxCompiler, isDarkMode, updateTestCase])
+
+  // Keep runModeRef in sync so Monaco's Ctrl+Enter never has a stale closure.
+  useEffect(() => {
+    runModeRef.current = problem ? runActiveTest : runNormal
+  }, [problem, runActiveTest, runNormal])
 
   // ─── Run all tests ─────────────────────────────────────────────────────
   const runAllTests = useCallback(async () => {

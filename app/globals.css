@@ -42,3 +42,91 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
 }
+
+/* ── Problem statement render (Codeforces HTML injected via dangerouslySetInnerHTML) ── */
+.problem-statement-render .problem-statement {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.problem-statement-render .section-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  padding-bottom: 3px;
+}
+
+.problem-statement-render p {
+  margin: 6px 0;
+}
+
+.problem-statement-render ul,
+.problem-statement-render ol {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.problem-statement-render li {
+  margin: 3px 0;
+}
+
+/* Sample test cases */
+.problem-statement-render .sample-tests .input,
+.problem-statement-render .sample-tests .output {
+  margin-bottom: 8px;
+}
+
+.problem-statement-render .sample-tests .title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+
+.problem-statement-render .sample-tests pre {
+  font-family: 'Fira Code', 'Menlo', monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+.problem-statement-render .sample-tests pre .test-example-line {
+  display: block;
+}
+
+/* Hide the input-output-copier buttons in the rendered statement */
+.problem-statement-render .input-output-copier {
+  display: none !important;
+}
+
+/* Hide the CF problem header (already shown in ProblemPanel header) */
+.problem-statement-render .problem-statement .header {
+  display: none;
+}
+
+/* Math rendering fallback */
+.problem-statement-render .MathJax_Preview {
+  display: none;
+}
+
+/* Constraints / note section */
+.problem-statement-render .note {
+  margin-top: 10px;
+}
+
+/* Light mode overrides */
+@media (prefers-color-scheme: light) {
+  .problem-statement-render .sample-tests pre {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+}

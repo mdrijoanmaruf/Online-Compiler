@@ -250,8 +250,14 @@ const OnlineCompiler = () => {
   useEffect(() => {
     const handler = (e: Event) => {
       const payload = (e as CustomEvent<ProblemPayload>).detail
-      loadProblem(payload)
-      localStorage.setItem('cf-active-problem', JSON.stringify(payload))
+      // localStorage was already written by the content script before this event;
+      // skip duplicate load if the restore-on-mount effect already loaded the same session.
+      const saved = localStorage.getItem('cf-active-problem')
+      const alreadyLoaded = saved && (() => { try { return JSON.parse(saved).sessionId === payload.sessionId } catch { return false } })()
+      if (!alreadyLoaded) {
+        loadProblem(payload)
+        localStorage.setItem('cf-active-problem', JSON.stringify(payload))
+      }
       Swal.fire({
         toast: true, position: 'top-end', icon: 'success', showConfirmButton: false,
         timer: 2500, timerProgressBar: true,
@@ -888,10 +894,11 @@ const OnlineCompiler = () => {
                   <button
                     type="button"
                     onClick={() => setProblemPanelOpen(p => !p)}
-                    className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${problemPanelOpen ? 'text-blue-400' : ts.textSec} ${ts.bgHover} transition-all duration-150`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${problemPanelOpen ? 'border-blue-500/50 text-blue-400' : `${ts.border} ${ts.textSec}`} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
                     title="Toggle problem statement"
                   >
                     <FiCode className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Problem</span>
                   </button>
                 )}
                 <button

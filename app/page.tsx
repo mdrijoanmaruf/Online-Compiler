@@ -8,7 +8,7 @@ import {
   FiCopy, FiSun, FiMoon, FiFile, FiFolder,
   FiChevronRight, FiChevronDown,
   FiTrash2, FiEdit2, FiFolderPlus, FiFilePlus,
-  FiX, FiSidebar
+  FiX, FiSidebar, FiSend
 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import JSZip from 'jszip'
@@ -284,6 +284,20 @@ const OnlineCompiler = () => {
     // Default to C++ for Codeforces
     const cpp = LANGUAGES.find(l => l.id === 'cpp')
     if (cpp) setSelectedLanguage(cpp)
+  }
+
+  function handleSubmitOnCF() {
+    if (!problem || !code.trim()) return
+    // Relay code + language to the extension content script via postMessage.
+    // compiler-injector.js is listening and will persist to chrome.storage.local
+    // so the CF content script can auto-fill the submit form when the tab opens.
+    window.postMessage({
+      type: 'cf-pending-submit',
+      code,
+      languageId: selectedLanguage.id,
+      problemUrl: problem.problemUrl,
+    }, '*')
+    setTimeout(() => window.open(problem.problemUrl, '_blank'), 150)
   }
 
   function clearProblem() {
@@ -838,7 +852,12 @@ const OnlineCompiler = () => {
     >
       {/* ─── Problem Modal ─────────────────────────────────────────────── */}
       {problem && problemPanelOpen && (
-        <ProblemPanel problem={problem} isDark={isDarkMode} onClose={() => setProblemPanelOpen(false)} />
+        <ProblemPanel
+          problem={problem}
+          isDark={isDarkMode}
+          onClose={() => setProblemPanelOpen(false)}
+          onSubmit={() => { setProblemPanelOpen(false); handleSubmitOnCF() }}
+        />
       )}
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -862,24 +881,25 @@ const OnlineCompiler = () => {
                   <FiSidebar className="h-3.5 w-3.5" />
                 </button>
 
-                {/* CF metadata bar (shown when problem is loaded) */}
-                {problem ? (
+                {/* CF metadata bar — shown when a problem is loaded */}
+                {problem && (
                   <ProblemMetaBar problem={problem} isDark={isDarkMode} onClear={clearProblem} />
-                ) : (
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguage.color }} />
-                    <select
-                      value={selectedLanguage.id}
-                      onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
-                      title="Select programming language"
-                      className={`px-1.5 sm:px-2 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs min-w-0 shrink`}
-                    >
-                      {LANGUAGES.map(lang => (
-                        <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
-                      ))}
-                    </select>
-                  </div>
                 )}
+
+                {/* Language selector — always visible so user can change language */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="lang-dot w-2 h-2 rounded-full shrink-0" style={{ '--lang-color': selectedLanguage.color } as React.CSSProperties} />
+                  <select
+                    value={selectedLanguage.id}
+                    onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
+                    title="Select programming language"
+                    className={`px-1.5 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs`}
+                  >
+                    {LANGUAGES.map(lang => (
+                      <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
@@ -893,17 +913,29 @@ const OnlineCompiler = () => {
                 <button type="button" onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
                   <FiDownload className="h-3.5 w-3.5" />
                 </button>
-                {/* View Problem modal button (shown when problem loaded) */}
+                {/* View Problem + Submit buttons (shown when problem loaded) */}
                 {problem && (
-                  <button
-                    type="button"
-                    onClick={() => setProblemPanelOpen(true)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
-                    title="View problem statement"
-                  >
-                    <FiCode className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">View Problem</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setProblemPanelOpen(true)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
+                      title="View problem statement"
+                    >
+                      <FiCode className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">View Problem</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitOnCF}
+                      disabled={!code.trim()}
+                      className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/90 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white border border-amber-400/40 transition-all duration-150 text-xs font-semibold shrink-0"
+                      title="Submit this code on Codeforces"
+                    >
+                      <FiSend className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Submit</span>
+                    </button>
+                  </>
                 )}
                 <button
                   type="button"

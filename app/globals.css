@@ -25,6 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Dynamic progress bar — width driven by --progress CSS variable */
+.progress-fill {
+  width: var(--progress, 0%);
+}
+
+/* Language colour dot — background driven by --lang-color CSS variable */
+.lang-dot {
+  background-color: var(--lang-color, #94a3b8);
+}
+
 /* Custom scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;

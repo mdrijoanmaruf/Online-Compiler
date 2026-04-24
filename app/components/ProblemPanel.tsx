@@ -8,9 +8,10 @@ interface ProblemPanelProps {
   problem: ProblemPayload
   isDark: boolean
   onClose: () => void
+  onSubmit: () => void
 }
 
-export default function ProblemPanel({ problem, isDark, onClose }: ProblemPanelProps) {
+export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: ProblemPanelProps) {
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape
@@ -69,7 +70,7 @@ export default function ProblemPanel({ problem, isDark, onClose }: ProblemPanelP
 
   return (
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${d.overlay} backdrop-blur-sm`}
+      className={`fixed inset-0 z-200 flex items-center justify-center p-4 ${d.overlay} backdrop-blur-sm`}
       onClick={onClose}
     >
       <div
@@ -167,9 +168,9 @@ export default function ProblemPanel({ problem, isDark, onClose }: ProblemPanelP
             </button>
             <button
               type="button"
-              disabled
-              title="Submit functionality coming soon"
-              className={`inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg font-semibold transition-colors ${d.submitBtn} opacity-50 cursor-not-allowed`}
+              onClick={onSubmit}
+              className={`inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg font-semibold transition-colors ${d.submitBtn}`}
+              title="Open Codeforces submit page with your code pre-filled"
             >
               <FiSend className="w-3.5 h-3.5" />
               Submit on Codeforces

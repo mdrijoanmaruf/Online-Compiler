@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import {
   FiPlay, FiDownload, FiRefreshCw,
-  FiCode, FiClock, FiZap,
+  FiCode, FiFileText, FiClock, FiZap,
   FiCopy, FiSun, FiMoon, FiFile, FiFolder,
   FiChevronRight, FiChevronDown,
   FiTrash2, FiEdit2, FiFolderPlus, FiFilePlus,
@@ -16,6 +16,7 @@ import type { ProblemPayload, TestCaseState } from './types/problem'
 import ProblemPanel from './components/ProblemPanel'
 import ProblemMetaBar from './components/ProblemMetaBar'
 import TestCasePanel from './components/TestCasePanel'
+import EditorErrorBoundary from './components/EditorErrorBoundary'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FileNode {
@@ -182,6 +183,8 @@ const OnlineCompiler = () => {
   const [stdin, setStdin] = useState('')
   const [normalOutput, setNormalOutput] = useState('')
   const [normalOutputStatus, setNormalOutputStatus] = useState<'idle' | 'running' | 'error' | 'success'>('idle')
+  const [normalSplitPct, setNormalSplitPct] = useState(40)
+  const [isResizingNormal, setIsResizingNormal] = useState(false)
 
   // ─── Problem + Test Case State ───────────────────────────────────────────
   const [problem, setProblem] = useState<ProblemPayload | null>(null)
@@ -199,6 +202,7 @@ const OnlineCompiler = () => {
   const runAllTestsRef = useRef<() => Promise<void>>(async () => {})
   const addTestCaseRef = useRef<() => void>(() => {})
   const testCasesRef = useRef<TestCaseState[]>([])
+  const normalPanelRef = useRef<HTMLDivElement>(null)
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const activeFile = activeFileId ? findNode(fileTree, activeFileId) : null
@@ -240,7 +244,7 @@ const OnlineCompiler = () => {
 
   const loadProblem = useCallback((payload: ProblemPayload) => {
     setProblem(payload)
-    setProblemPanelOpen(false)
+    setProblemPanelOpen(true)
     setTestCases(payload.testCases.map(tc => ({
       id: tc.id,
       label: tc.label,
@@ -491,6 +495,25 @@ const OnlineCompiler = () => {
       document.removeEventListener('touchend', onUp)
     }
   }, [isResizing, isMobile])
+
+  // ─── Normal mode I/O panel vertical resizer ────────────────────────────
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!normalPanelRef.current || !isResizingNormal) return
+      const r = normalPanelRef.current.getBoundingClientRect()
+      const pct = ((e.clientY - r.top) / r.height) * 100
+      setNormalSplitPct(Math.min(Math.max(pct, 20), 75))
+    }
+    const onUp = () => setIsResizingNormal(false)
+    if (isResizingNormal) {
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    }
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [isResizingNormal])
 
   // ─── Monaco Editor mount ───────────────────────────────────────────────
   const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -997,7 +1020,7 @@ const OnlineCompiler = () => {
                       className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
                       title="View problem statement"
                     >
-                      <FiCode className="h-3.5 w-3.5" />
+                      <FiFileText className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">View Problem</span>
                     </button>
                     <button
@@ -1023,7 +1046,7 @@ const OnlineCompiler = () => {
                     : <><FiPlay className="h-3.5 w-3.5" /><span className="hidden sm:inline">Run</span></>
                   }
                 </button>
-                {executionTime && (
+                {problem && executionTime && (
                   <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-1.5 py-0.5 rounded`}>
                     <FiClock className="h-3 w-3" /><span>{executionTime}ms</span>
                   </div>
@@ -1146,35 +1169,37 @@ const OnlineCompiler = () => {
                   <div className={`absolute inset-0 ${isDarkMode ? 'from-slate-900/30 to-slate-800/30' : 'bg-white'} pointer-events-none z-0`} />
                   <div className={`relative z-10 h-full overflow-hidden ${isDarkMode ? '' : 'bg-white'}`}>
                     {activeFile ? (
-                      <Editor
-                        height="100%"
-                        language={getMonacoLanguage(activeFile.name)}
-                        value={code}
-                        onChange={(value) => setCode(value || '')}
-                        onMount={handleEditorDidMount}
-                        theme={isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight'}
-                        path={activeFile.id}
-                        options={{
-                          fontSize: isMobile ? 12 : 13,
-                          fontFamily: 'Fira Code, Monaco, Menlo, "Ubuntu Mono", monospace',
-                          fontLigatures: true, lineNumbers: 'on', roundedSelection: false,
-                          scrollBeyondLastLine: false, automaticLayout: true,
-                          minimap: { enabled: false }, wordWrap: 'on', tabSize: 2,
-                          insertSpaces: true, renderLineHighlight: 'line', selectOnLineNumbers: true,
-                          bracketPairColorization: { enabled: true },
-                          padding: { top: isMobile ? 8 : 12, bottom: isMobile ? 8 : 12 },
-                          suggest: { showKeywords: true, showSnippets: true, showFunctions: true, showVariables: true },
-                          quickSuggestions: { other: true, comments: false, strings: false },
-                          parameterHints: { enabled: true },
-                          autoClosingBrackets: 'always', autoClosingQuotes: 'always', autoIndent: 'full',
-                          formatOnPaste: true, formatOnType: true, renderWhitespace: 'selection',
-                          cursorStyle: 'line', cursorBlinking: 'smooth', smoothScrolling: true,
-                          mouseWheelZoom: true, contextmenu: true, folding: true,
-                          foldingHighlight: true, unfoldOnClickAfterEndOfLine: false,
-                          colorDecorators: true, codeLens: false,
-                          scrollbar: { vertical: 'hidden', horizontal: 'hidden', verticalScrollbarSize: 0, horizontalScrollbarSize: 0 }
-                        }}
-                      />
+                      <EditorErrorBoundary>
+                        <Editor
+                          height="100%"
+                          language={getMonacoLanguage(activeFile.name)}
+                          value={code}
+                          onChange={(value) => setCode(value || '')}
+                          onMount={handleEditorDidMount}
+                          theme={isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight'}
+                          path={activeFile.id}
+                          options={{
+                            fontSize: isMobile ? 12 : 13,
+                            fontFamily: 'Fira Code, Monaco, Menlo, "Ubuntu Mono", monospace',
+                            fontLigatures: true, lineNumbers: 'on', roundedSelection: false,
+                            scrollBeyondLastLine: false, automaticLayout: true,
+                            minimap: { enabled: false }, wordWrap: 'on', tabSize: 2,
+                            insertSpaces: true, renderLineHighlight: 'line', selectOnLineNumbers: true,
+                            bracketPairColorization: { enabled: true },
+                            padding: { top: isMobile ? 8 : 12, bottom: isMobile ? 8 : 12 },
+                            suggest: { showKeywords: true, showSnippets: true, showFunctions: true, showVariables: true },
+                            quickSuggestions: { other: true, comments: false, strings: false },
+                            parameterHints: { enabled: true },
+                            autoClosingBrackets: 'always', autoClosingQuotes: 'always', autoIndent: 'full',
+                            formatOnPaste: true, formatOnType: true, renderWhitespace: 'selection',
+                            cursorStyle: 'line', cursorBlinking: 'smooth', smoothScrolling: true,
+                            mouseWheelZoom: true, contextmenu: true, folding: true,
+                            foldingHighlight: true, unfoldOnClickAfterEndOfLine: false,
+                            colorDecorators: true, codeLens: false,
+                            scrollbar: { vertical: 'hidden', horizontal: 'hidden', verticalScrollbarSize: 0, horizontalScrollbarSize: 0 }
+                          }}
+                        />
+                      </EditorErrorBoundary>
                     ) : (
                       <div className={`flex items-center justify-center h-full ${ts.textMuted}`}>
                         <div className="text-center">
@@ -1228,10 +1253,10 @@ const OnlineCompiler = () => {
                     onRunAll={runAllTests}
                   />
                 ) : (
-                  /* Normal mode — simple stdin + output */
-                  <div className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-900/20' : 'bg-white'}`}>
+                  /* Normal mode — stdin + output with draggable split */
+                  <div ref={normalPanelRef} className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-900/20' : 'bg-white'}`} style={{ '--io-split': `${normalSplitPct}%` } as React.CSSProperties}>
                     {/* Input */}
-                    <div className={`flex flex-col border-b ${ts.border} flex-[0_0_40%]`}>
+                    <div className={`io-split-input flex flex-col border-b ${ts.border} overflow-hidden`}>
                       <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0`}>
                         <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Input</span>
                       </div>
@@ -1244,8 +1269,16 @@ const OnlineCompiler = () => {
                       />
                     </div>
 
+                    {/* Vertical resizer */}
+                    <div
+                      className={`h-1.5 shrink-0 cursor-row-resize flex items-center justify-center group select-none ${ts.resizer}`}
+                      onMouseDown={() => setIsResizingNormal(true)}
+                    >
+                      <div className={`h-0.5 w-8 rounded-full ${ts.resizerBar}`} />
+                    </div>
+
                     {/* Output */}
-                    <div className="flex flex-col min-h-0 flex-[1_1_0]">
+                    <div className="flex flex-col min-h-0 flex-1">
                       <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0 flex items-center justify-between`}>
                         <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${
                           normalOutputStatus === 'error' ? 'text-red-400'
@@ -1296,14 +1329,18 @@ const OnlineCompiler = () => {
           {!isMobile && (
             <div className={`flex items-center gap-3 mt-1 px-2 text-[10px] ${ts.textMuted}`}>
               <span>Ctrl+Enter: Run</span>
-              <span>Ctrl+Shift+Enter: Run All</span>
-              <span>Ctrl+T: Add test case</span>
-              <span>Ctrl+]/[: Switch test case</span>
-              {problem && (
-                <span className="ml-auto text-blue-400">
-                  <FiZap className="inline w-3 h-3 mr-0.5" />
-                  CF problem loaded
-                </span>
+              {problem ? (
+                <>
+                  <span>Ctrl+Shift+Enter: Run All</span>
+                  <span>Ctrl+T: Add test case</span>
+                  <span>Ctrl+]/[: Switch tab</span>
+                  <span className="ml-auto text-blue-400">
+                    <FiZap className="inline w-3 h-3 mr-0.5" />
+                    CF problem loaded
+                  </span>
+                </>
+              ) : (
+                <span className={ts.textMuted}>stdin supported</span>
               )}
             </div>
           )}

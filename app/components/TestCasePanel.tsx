@@ -118,6 +118,11 @@ export default function TestCasePanel({
                 {STATUS_ICON[t.status]}
               </span>
               <span className="font-medium">{t.label}</span>
+              {!t.label.startsWith('Sample') && (
+                <span className="text-[8px] px-1 py-0 rounded bg-violet-500/20 text-violet-400 border border-violet-500/30 font-bold leading-tight">
+                  custom
+                </span>
+              )}
               {testCases.length > 1 && (
                 <button
                   type="button"

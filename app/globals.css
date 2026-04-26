@@ -30,6 +30,11 @@ body {
   width: var(--progress, 0%);
 }
 
+/* Normal-mode I/O panel input height — driven by --io-split CSS variable */
+.io-split-input {
+  height: var(--io-split, 40%);
+}
+
 /* Language colour dot — background driven by --lang-color CSS variable */
 .lang-dot {
   background-color: var(--lang-color, #94a3b8);

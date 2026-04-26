@@ -22,7 +22,7 @@ export default function ProblemMetaBar({ problem, isDark, onClear }: ProblemMeta
       </span>
 
       {/* Problem name */}
-      <span className={`font-semibold ${text} truncate max-w-[160px]`}>{problem.problemName}</span>
+      <span className={`font-semibold ${text} truncate max-w-55`}>{problem.problemName}</span>
 
       {/* Separator */}
       <span className={`${muted} hidden sm:inline`}>•</span>

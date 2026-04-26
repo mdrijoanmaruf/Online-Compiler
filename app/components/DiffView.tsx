@@ -50,13 +50,13 @@ export default function DiffView({ expected, actual, isDark }: DiffViewProps) {
       <div className={`grid grid-cols-2 gap-1.5`}>
         <div>
           <p className={`text-xs font-medium mb-1 ${label}`}>Expected</p>
-          <div className={`border ${border} ${bg} rounded overflow-auto max-h-32`}>
+          <div className={`border ${border} ${bg} rounded overflow-auto max-h-48`}>
             {renderLines(expLines, actLines, 'exp')}
           </div>
         </div>
         <div>
           <p className={`text-xs font-medium mb-1 ${label}`}>Actual</p>
-          <div className={`border ${border} ${bg} rounded overflow-auto max-h-32`}>
+          <div className={`border ${border} ${bg} rounded overflow-auto max-h-48`}>
             {renderLines(actLines, expLines, 'act')}
           </div>
         </div>

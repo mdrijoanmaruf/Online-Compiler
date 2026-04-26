@@ -71,11 +71,9 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
   return (
     <div
       className={`fixed inset-0 z-200 flex items-center justify-center p-4 ${d.overlay} backdrop-blur-sm`}
-      onClick={onClose}
     >
       <div
         className={`relative flex flex-col w-full max-w-3xl max-h-[88vh] rounded-2xl border shadow-2xl ${d.modal} overflow-hidden`}
-        onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
         <div className={`shrink-0 px-5 py-4 border-b ${d.header} ${d.divider}`}>

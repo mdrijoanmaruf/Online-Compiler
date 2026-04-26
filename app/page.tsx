@@ -195,6 +195,10 @@ const OnlineCompiler = () => {
   const outputContainerRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const runModeRef = useRef<() => void>(() => {})
+  // Refs so Monaco commands (registered once at mount) never hold stale closures
+  const runAllTestsRef = useRef<() => Promise<void>>(async () => {})
+  const addTestCaseRef = useRef<() => void>(() => {})
+  const testCasesRef = useRef<TestCaseState[]>([])
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const activeFile = activeFileId ? findNode(fileTree, activeFileId) : null
@@ -234,6 +238,23 @@ const OnlineCompiler = () => {
     if (saved === 'light') setIsDarkMode(false)
   }, [])
 
+  const loadProblem = useCallback((payload: ProblemPayload) => {
+    setProblem(payload)
+    setProblemPanelOpen(false)
+    setTestCases(payload.testCases.map(tc => ({
+      id: tc.id,
+      label: tc.label,
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      actualOutput: '',
+      status: 'idle',
+    })))
+    setActiveTestCase(0)
+    // Default to C++ for Codeforces
+    const cpp = LANGUAGES.find(l => l.id === 'cpp')
+    if (cpp) setSelectedLanguage(cpp)
+  }, [])
+
   // ─── Restore problem from localStorage (persist across refreshes) ──────
   useEffect(() => {
     const saved = localStorage.getItem('cf-active-problem')
@@ -250,7 +271,7 @@ const OnlineCompiler = () => {
         background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
       })
     } catch { /* ignore */ }
-  }, []) // run once on mount — intentionally omits loadProblem from deps
+  }, [loadProblem])
 
   // ─── Listen for extension event ────────────────────────────────────────
   useEffect(() => {
@@ -273,24 +294,7 @@ const OnlineCompiler = () => {
     }
     window.addEventListener('ext:problem-loaded', handler)
     return () => window.removeEventListener('ext:problem-loaded', handler)
-  }, []) // run once on mount — intentionally omits loadProblem from deps
-
-  function loadProblem(payload: ProblemPayload) {
-    setProblem(payload)
-    setProblemPanelOpen(false)
-    setTestCases(payload.testCases.map(tc => ({
-      id: tc.id,
-      label: tc.label,
-      input: tc.input,
-      expectedOutput: tc.expectedOutput,
-      actualOutput: '',
-      status: 'idle',
-    })))
-    setActiveTestCase(0)
-    // Default to C++ for Codeforces
-    const cpp = LANGUAGES.find(l => l.id === 'cpp')
-    if (cpp) setSelectedLanguage(cpp)
-  }
+  }, [loadProblem])
 
   // ─── Run in normal mode (no CF problem) ───────────────────────────────
   const runNormal = useCallback(async () => {
@@ -342,7 +346,9 @@ const OnlineCompiler = () => {
       languageId: selectedLanguage.id,
       problemUrl: problem.problemUrl,
     }, '*')
-    setTimeout(() => window.open(problem.problemUrl, '_blank'), 150)
+    // 400ms gives the compiler-injector message handler enough time to write
+    // to chrome.storage.local before the CF tab opens and tryAutoFillSubmit runs.
+    setTimeout(() => window.open(problem.problemUrl, '_blank'), 400)
   }
 
   function clearProblem() {
@@ -350,6 +356,9 @@ const OnlineCompiler = () => {
     setProblemPanelOpen(false)
     setTestCases([makeDefaultTestCase(1)])
     setActiveTestCase(0)
+    setStdin('')
+    setNormalOutput('')
+    setNormalOutputStatus('idle')
     localStorage.removeItem('cf-active-problem')
   }
 
@@ -537,10 +546,10 @@ const OnlineCompiler = () => {
       // Route to correct run mode — problem state captured via ref to avoid stale closure
       runModeRef.current()
     })
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => runAllTests())
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => addTestCase())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => runAllTestsRef.current())
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => addTestCaseRef.current())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketRight, () =>
-      setActiveTestCase(i => Math.min(i + 1, testCases.length - 1))
+      setActiveTestCase(i => Math.min(i + 1, testCasesRef.current.length - 1))
     )
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.BracketLeft, () =>
       setActiveTestCase(i => Math.max(i - 1, 0))
@@ -560,9 +569,9 @@ const OnlineCompiler = () => {
       const id = prev.length + 1
       const newTc = makeDefaultTestCase(id)
       newTc.label = `Test ${id}`
-      setActiveTestCase(prev.length)
       return [...prev, newTc]
     })
+    setActiveTestCase(prev => prev + 1)
   }, [])
 
   const deleteTestCase = useCallback((index: number) => {
@@ -631,15 +640,19 @@ const OnlineCompiler = () => {
   // ─── Run all tests ─────────────────────────────────────────────────────
   const runAllTests = useCallback(async () => {
     if (!code.trim()) return
+    // Snapshot so mid-loop additions/deletions don't shift indices or cause undefined reads.
+    const snapshot = testCases.slice()
     setIsRunningAll(true)
-    for (let i = 0; i < testCases.length; i++) {
+    for (let i = 0; i < snapshot.length; i++) {
+      const tc = snapshot[i]
+      if (!tc) continue
       updateTestCase(i, { status: 'running', actualOutput: '' })
       const startTime = Date.now()
       try {
         const response = await fetch('/api/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin: testCases[i].input }),
+          body: JSON.stringify({ code, compiler: selectedLanguage.wandboxCompiler, stdin: tc.input }),
         })
         const result = await response.json()
         const elapsed = Date.now() - startTime
@@ -650,8 +663,8 @@ const OnlineCompiler = () => {
         let status: TestCaseState['status']
         if (hasError) {
           status = 'error'
-        } else if (testCases[i].expectedOutput.trim()) {
-          status = actualOutput.trim() === testCases[i].expectedOutput.trim() ? 'passed' : 'failed'
+        } else if (tc.expectedOutput.trim()) {
+          status = actualOutput.trim() === tc.expectedOutput.trim() ? 'passed' : 'failed'
         } else {
           status = 'idle'
         }
@@ -662,6 +675,11 @@ const OnlineCompiler = () => {
     }
     setIsRunningAll(false)
   }, [code, testCases, selectedLanguage.wandboxCompiler, updateTestCase])
+
+  // Keep remaining Monaco command refs current — must live after declarations.
+  useEffect(() => { runAllTestsRef.current = runAllTests }, [runAllTests])
+  useEffect(() => { addTestCaseRef.current = addTestCase }, [addTestCase])
+  useEffect(() => { testCasesRef.current = testCases }, [testCases])
 
   // ─── Language change ───────────────────────────────────────────────────
   const handleLanguageChange = (language: typeof LANGUAGES[number]) => {
@@ -1186,7 +1204,7 @@ const OnlineCompiler = () => {
                 <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
               </div>
 
-              {/* ─── Test Case Panel (replaces old input/output) ────── */}
+              {/* ─── Right Panel: simple I/O (normal) or test cases (CF problem) ── */}
               <div
                 ref={outputContainerRef}
                 className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
@@ -1196,18 +1214,80 @@ const OnlineCompiler = () => {
                   flex: isMobile ? 'none' : undefined,
                 }}
               >
-                <TestCasePanel
-                  testCases={testCases}
-                  activeIndex={activeTestCase}
-                  isRunningAll={isRunningAll}
-                  isDark={isDarkMode}
-                  onSetActive={setActiveTestCase}
-                  onUpdateTestCase={updateTestCase}
-                  onAddTestCase={addTestCase}
-                  onDeleteTestCase={deleteTestCase}
-                  onRunOne={(i) => runActiveTest(i)}
-                  onRunAll={runAllTests}
-                />
+                {problem ? (
+                  <TestCasePanel
+                    testCases={testCases}
+                    activeIndex={activeTestCase}
+                    isRunningAll={isRunningAll}
+                    isDark={isDarkMode}
+                    onSetActive={setActiveTestCase}
+                    onUpdateTestCase={updateTestCase}
+                    onAddTestCase={addTestCase}
+                    onDeleteTestCase={deleteTestCase}
+                    onRunOne={(i) => runActiveTest(i)}
+                    onRunAll={runAllTests}
+                  />
+                ) : (
+                  /* Normal mode — simple stdin + output */
+                  <div className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-900/20' : 'bg-white'}`}>
+                    {/* Input */}
+                    <div className={`flex flex-col border-b ${ts.border} flex-[0_0_40%]`}>
+                      <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0`}>
+                        <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Input</span>
+                      </div>
+                      <textarea
+                        className={`flex-1 w-full font-mono text-xs p-3 resize-none focus:outline-none bg-transparent ${isDarkMode ? 'text-slate-100' : 'text-gray-900'} placeholder:opacity-30 placeholder:italic`}
+                        value={stdin}
+                        onChange={e => setStdin(e.target.value)}
+                        placeholder="stdin…"
+                        spellCheck={false}
+                      />
+                    </div>
+
+                    {/* Output */}
+                    <div className="flex flex-col min-h-0 flex-[1_1_0]">
+                      <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0 flex items-center justify-between`}>
+                        <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${
+                          normalOutputStatus === 'error' ? 'text-red-400'
+                          : normalOutputStatus === 'success' ? (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')
+                          : isDarkMode ? 'text-slate-500' : 'text-gray-400'
+                        }`}>Output</span>
+                        {normalOutputStatus === 'running' && (
+                          <span className="text-[9px] text-blue-400 animate-pulse">Running…</span>
+                        )}
+                        {executionTime && normalOutputStatus !== 'idle' && (
+                          <span className={`text-[9px] ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>{executionTime}ms</span>
+                        )}
+                      </div>
+                      <div className={`flex-1 overflow-y-auto p-3 font-mono text-xs whitespace-pre-wrap break-all custom-scrollbar ${
+                        normalOutputStatus === 'error' ? 'text-red-400'
+                        : isDarkMode ? 'text-slate-100' : 'text-gray-900'
+                      }`}>
+                        {normalOutputStatus === 'running'
+                          ? <span className="text-blue-400 animate-pulse">Running…</span>
+                          : normalOutput
+                            ? normalOutput
+                            : <span className={`italic ${isDarkMode ? 'text-slate-600' : 'text-gray-300'}`}>Output will appear here…</span>
+                        }
+                      </div>
+                    </div>
+
+                    {/* Run button */}
+                    <div className={`shrink-0 border-t ${ts.border} px-2.5 py-2`}>
+                      <button
+                        type="button"
+                        onClick={runNormal}
+                        disabled={isExecuting}
+                        className={`w-full py-1.5 text-xs font-bold rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed
+                          ${isDarkMode
+                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/25'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'}`}
+                      >
+                        {isExecuting ? '⏳ Running…' : '▶ Run'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -186,6 +186,10 @@ const OnlineCompiler = () => {
   const [normalSplitPct, setNormalSplitPct] = useState(40)
   const [isResizingNormal, setIsResizingNormal] = useState(false)
 
+  // ─── Sidebar resize State ────────────────────────────────────────────────
+  const [sidebarWidth, setSidebarWidth] = useState(200)
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+
   // ─── Problem + Test Case State ───────────────────────────────────────────
   const [problem, setProblem] = useState<ProblemPayload | null>(null)
   const [problemPanelOpen, setProblemPanelOpen] = useState(false)
@@ -257,6 +261,8 @@ const OnlineCompiler = () => {
     // Default to C++ for Codeforces
     const cpp = LANGUAGES.find(l => l.id === 'cpp')
     if (cpp) setSelectedLanguage(cpp)
+    // Update tab title so users can identify this tab at a glance
+    document.title = `${payload.problemName} — Rijoan Compiler`
   }, [])
 
   // ─── Restore problem from localStorage (persist across refreshes) ──────
@@ -355,7 +361,19 @@ const OnlineCompiler = () => {
     setTimeout(() => window.open(problem.problemUrl, '_blank'), 400)
   }
 
-  function clearProblem() {
+  async function clearProblem() {
+    const result = await Swal.fire({
+      title: 'Clear problem?',
+      text: 'This will remove the loaded problem and all test cases.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Clear',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#ef4444',
+      background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff',
+      color: isDarkMode ? '#f8fafc' : '#1f2937',
+    })
+    if (!result.isConfirmed) return
     setProblem(null)
     setProblemPanelOpen(false)
     setTestCases([makeDefaultTestCase(1)])
@@ -363,6 +381,7 @@ const OnlineCompiler = () => {
     setStdin('')
     setNormalOutput('')
     setNormalOutputStatus('idle')
+    document.title = 'Online Code Compiler'
     localStorage.removeItem('cf-active-problem')
   }
 
@@ -402,13 +421,14 @@ const OnlineCompiler = () => {
       localStorage.setItem('compiler-mobile-editor-height', mobileEditorHeight.toString())
       localStorage.setItem('compiler-theme', isDarkMode ? 'dark' : 'light')
       localStorage.setItem('compiler-sidebar', sidebarOpen ? 'open' : 'closed')
+      localStorage.setItem('compiler-sidebar-width', sidebarWidth.toString())
       try { localStorage.setItem('compiler-file-tree', JSON.stringify(fileTree)) } catch { /* ignore */ }
       localStorage.setItem('compiler-active-file', activeFileId)
       localStorage.setItem('compiler-open-tabs', JSON.stringify(openTabs))
       localStorage.setItem('compiler-stdin', stdin)
     }, 500)
     return () => clearTimeout(t)
-  }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, fileTree, activeFileId, openTabs, stdin])
+  }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, sidebarWidth, fileTree, activeFileId, openTabs, stdin])
 
   // ─── Load preferences ─────────────────────────────────────────────────
   useEffect(() => {
@@ -448,6 +468,8 @@ const OnlineCompiler = () => {
     if (savedSidebar === 'closed') setSidebarOpen(false)
     if (savedEditorWidth) { const v = parseFloat(savedEditorWidth); if (v >= 20 && v <= 80) setEditorWidth(v) }
     if (savedMobileEditorHeight) { const v = parseFloat(savedMobileEditorHeight); if (v >= 25 && v <= 75) setMobileEditorHeight(v) }
+    const savedSidebarWidth = localStorage.getItem('compiler-sidebar-width')
+    if (savedSidebarWidth) { const v = parseFloat(savedSidebarWidth); if (v >= 120 && v <= 400) setSidebarWidth(v) }
 
     const savedStdin = localStorage.getItem('compiler-stdin')
     if (savedStdin) setStdin(savedStdin)
@@ -514,6 +536,24 @@ const OnlineCompiler = () => {
       document.removeEventListener('mouseup', onUp)
     }
   }, [isResizingNormal])
+
+  // ─── Sidebar resize ────────────────────────────────────────────────────
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizingSidebar || !containerRef.current) return
+      const r = containerRef.current.getBoundingClientRect()
+      setSidebarWidth(Math.min(Math.max(e.clientX - r.left, 120), 400))
+    }
+    const onUp = () => setIsResizingSidebar(false)
+    if (isResizingSidebar) {
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    }
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [isResizingSidebar])
 
   // ─── Monaco Editor mount ───────────────────────────────────────────────
   const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -874,9 +914,9 @@ const OnlineCompiler = () => {
     textMuted: isDarkMode ? 'text-slate-400' : 'text-indigo-600',
     border: isDarkMode ? 'border-white/10' : 'border-purple-200/80',
     borderLight: isDarkMode ? 'border-white/5' : 'border-pink-200/60',
-    bgPrimary: isDarkMode ? 'bg-white/5' : 'bg-linear-to-r from-purple-100/60 to-pink-100/60',
-    bgSec: isDarkMode ? 'bg-white/10' : 'bg-linear-to-r from-indigo-100/70 to-cyan-100/70',
-    bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-linear-to-r hover:from-purple-200/80 hover:to-pink-200/80',
+    bgPrimary: isDarkMode ? 'bg-white/5' : 'bg-purple-50/70',
+    bgSec: isDarkMode ? 'bg-white/10' : 'bg-white/80',
+    bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-purple-100/70',
     bgInput: isDarkMode ? 'bg-slate-900/20' : 'bg-white',
     resizer: isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-linear-to-r from-purple-300/40 to-pink-300/40 hover:from-purple-400/60 hover:to-pink-400/60',
     resizerBar: isDarkMode ? 'bg-white/20 group-hover:bg-white/40' : 'bg-linear-to-r from-purple-500/60 to-pink-500/60 group-hover:from-purple-600/80 group-hover:to-pink-600/80',
@@ -991,7 +1031,7 @@ const OnlineCompiler = () => {
                     value={selectedLanguage.id}
                     onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
                     title="Select programming language"
-                    className={`px-1.5 py-0.5 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs`}
+                    className={`px-1.5 py-1 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs`}
                   >
                     {LANGUAGES.map(lang => (
                       <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
@@ -1047,7 +1087,7 @@ const OnlineCompiler = () => {
                   }
                 </button>
                 {problem && executionTime && (
-                  <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-linear-to-r from-emerald-100 to-green-100 border border-emerald-300/60'} px-1.5 py-0.5 rounded`}>
+                  <div className={`hidden sm:flex items-center space-x-1 text-xs ${ts.textMuted} ${isDarkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-emerald-50 border border-emerald-200'} px-1.5 py-1 rounded`}>
                     <FiClock className="h-3 w-3" /><span>{executionTime}ms</span>
                   </div>
                 )}
@@ -1060,27 +1100,39 @@ const OnlineCompiler = () => {
 
             {/* ─── File Explorer Sidebar ─────────────────────────────── */}
             {sidebarOpen && (
-              <div
-                className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0 w-50'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
-              >
-                <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
-                  <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => addFile(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New File"><FiFilePlus className="w-3.5 h-3.5" /></button>
-                    <button type="button" onClick={() => addFolder(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New Folder"><FiFolderPlus className="w-3.5 h-3.5" /></button>
-                    {isMobile && (
-                      <button type="button" onClick={() => setSidebarOpen(false)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="Close"><FiX className="w-3.5 h-3.5" /></button>
+              <>
+                <div
+                  className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
+                  style={isMobile ? undefined : { width: `${sidebarWidth}px` }}
+                >
+                  <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
+                    <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => addFile(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New File"><FiFilePlus className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => addFolder(null)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="New Folder"><FiFolderPlus className="w-3.5 h-3.5" /></button>
+                      {isMobile && (
+                        <button type="button" onClick={() => setSidebarOpen(false)} className={`p-1 rounded ${ts.bgHover} ${ts.textSec}`} title="Close"><FiX className="w-3.5 h-3.5" /></button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden py-0.5 custom-scrollbar" onContextMenu={(e) => handleContextMenu(e, null)}>
+                    {fileTree.length === 0 ? (
+                      <div className={`p-4 text-center text-xs ${ts.textMuted}`}>No files yet. Click + to add one.</div>
+                    ) : (
+                      renderTree(sortTree(fileTree))
                     )}
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden py-0.5 custom-scrollbar" onContextMenu={(e) => handleContextMenu(e, null)}>
-                  {fileTree.length === 0 ? (
-                    <div className={`p-4 text-center text-xs ${ts.textMuted}`}>No files yet. Click + to add one.</div>
-                  ) : (
-                    renderTree(sortTree(fileTree))
-                  )}
-                </div>
-              </div>
+                {/* Sidebar drag handle — desktop only */}
+                {!isMobile && (
+                  <div
+                    className={`w-1.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full flex items-center justify-center group shrink-0`}
+                    onMouseDown={() => setIsResizingSidebar(true)}
+                  >
+                    <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
+                  </div>
+                )}
+              </>
             )}
 
             {/* ─── Context Menu ──────────────────────────────────────── */}

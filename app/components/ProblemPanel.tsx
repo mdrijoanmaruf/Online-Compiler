@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import DOMPurify from 'dompurify'
 import { FiX, FiExternalLink, FiSend, FiClock, FiCpu, FiStar, FiTag } from 'react-icons/fi'
 import type { ProblemPayload } from '../types/problem'
 
@@ -27,13 +28,14 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  // Sanitize and inject problem HTML
+  // Sanitize and inject problem HTML via DOMPurify (replaces insecure regex approach)
   useEffect(() => {
     if (!contentRef.current || !problem.statementHtml) return
-    let sanitized = problem.statementHtml
-    sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, '')
-    sanitized = sanitized.replace(/\s*on\w+="[^"]*"/gi, '')
-    sanitized = sanitized.replace(/\s*on\w+='[^']*'/gi, '')
+    const sanitized = DOMPurify.sanitize(problem.statementHtml, {
+      FORCE_BODY: true,
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur'],
+    })
     contentRef.current.innerHTML = sanitized
   }, [problem.statementHtml])
 

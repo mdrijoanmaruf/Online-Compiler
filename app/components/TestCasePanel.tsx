@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TestCaseState } from '../types/problem'
 import DiffView from './DiffView'
 
@@ -69,6 +69,16 @@ export default function TestCasePanel({
   onSetActive, onUpdateTestCase, onAddTestCase, onDeleteTestCase, onRunOne, onRunAll,
 }: TestCasePanelProps) {
   const tc = testCases[activeIndex]
+  const tabScrollRef = useRef<HTMLDivElement>(null)
+  const [showRightFade, setShowRightFade] = useState(false)
+
+  const checkOverflow = useCallback(() => {
+    const el = tabScrollRef.current
+    if (!el) return
+    setShowRightFade(el.scrollWidth > el.clientWidth + 2)
+  }, [])
+
+  useEffect(() => { checkOverflow() }, [testCases, checkOverflow])
 
   const passedCount = testCases.filter(t => t.status === 'passed').length
   const totalRan    = testCases.filter(t => t.status !== 'idle' && t.status !== 'running').length
@@ -97,7 +107,8 @@ export default function TestCasePanel({
     <div className={`flex flex-col h-full ${bgBase}`}>
 
       {/* ── Tab Bar ─────────────────────────────────────────────────────── */}
-      <div className={`flex items-center gap-1 px-2 py-1.5 border-b ${border} ${bgSec} overflow-x-auto shrink-0 custom-scrollbar`}>
+      <div className="relative shrink-0">
+      <div ref={tabScrollRef} onScroll={checkOverflow} className={`flex items-center gap-1 px-2 py-1.5 border-b ${border} ${bgSec} overflow-x-auto custom-scrollbar`}>
         {testCases.map((t, i) => {
           const active = i === activeIndex
           return (
@@ -146,6 +157,13 @@ export default function TestCasePanel({
         >
           +
         </button>
+      </div>
+      {/* Right-edge fade — signals hidden tabs when the bar overflows */}
+      {showRightFade && (
+        <div className={`absolute right-0 top-0 bottom-0 w-8 pointer-events-none rounded-tr
+          ${isDark ? 'bg-linear-to-l from-slate-900/80 to-transparent' : 'bg-linear-to-l from-gray-50/90 to-transparent'}`}
+        />
+      )}
       </div>
 
       {/* ── Fields ──────────────────────────────────────────────────────── */}

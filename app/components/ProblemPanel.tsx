@@ -40,23 +40,23 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
   }, [problem.statementHtml])
 
   const d = {
-    overlay:  isDark ? 'bg-black/70'                        : 'bg-black/40',
-    modal:    isDark ? 'bg-slate-900 border-white/10'        : 'bg-white border-gray-200',
-    header:   isDark ? 'bg-slate-800/80 border-white/10'     : 'bg-gray-50 border-gray-200',
-    footer:   isDark ? 'bg-slate-800/60 border-white/10'     : 'bg-gray-50 border-gray-200',
-    title:    isDark ? 'text-white'                          : 'text-gray-900',
-    muted:    isDark ? 'text-slate-400'                      : 'text-gray-500',
-    body:     isDark ? 'text-slate-200'                      : 'text-gray-800',
-    pill:     isDark ? 'bg-slate-700/80 text-slate-300 border-slate-600/50'
-                     : 'bg-gray-100 text-gray-600 border-gray-200',
-    metaPill: isDark ? 'bg-slate-700/60 text-slate-300 border-slate-600/40'
-                     : 'bg-blue-50 text-blue-700 border-blue-200',
-    closeBtn: isDark ? 'text-slate-400 hover:text-white hover:bg-white/10'
-                     : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100',
-    cfBtn:    isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white'
-                     : 'border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-    submitBtn:'bg-blue-600 hover:bg-blue-700 text-white',
-    divider:  isDark ? 'border-white/10'                     : 'border-gray-200',
+    overlay:  isDark ? 'bg-black/75'                        : 'bg-black/50',
+    modal:    isDark ? 'bg-slate-950 border-blue-500/20'        : 'bg-blue-50 border-blue-200',
+    header:   isDark ? 'bg-linear-to-r from-blue-900/90 to-indigo-900/90 border-blue-500/30'     : 'bg-linear-to-r from-blue-100 to-indigo-100 border-blue-300',
+    footer:   isDark ? 'bg-slate-900/60 border-blue-500/20'     : 'bg-blue-50 border-blue-200',
+    title:    isDark ? 'text-white'                          : 'text-blue-950',
+    muted:    isDark ? 'text-blue-300'                      : 'text-blue-700',
+    body:     isDark ? 'text-slate-100'                      : 'text-slate-900',
+    pill:     isDark ? 'bg-blue-800/60 text-blue-200 border-blue-600/50'
+                     : 'bg-blue-100 text-blue-800 border-blue-300',
+    metaPill: isDark ? 'bg-blue-700/60 text-blue-200 border-blue-600/40'
+                     : 'bg-blue-100 text-blue-800 border-blue-300',
+    closeBtn: isDark ? 'text-blue-300 hover:text-white hover:bg-blue-500/20'
+                     : 'text-blue-600 hover:text-blue-900 hover:bg-blue-200/50',
+    cfBtn:    isDark ? 'border-blue-600 text-blue-300 hover:bg-blue-500/20 hover:text-white'
+                     : 'border-blue-300 text-blue-700 hover:bg-blue-100/70 hover:text-blue-900',
+    submitBtn:'bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white',
+    divider:  isDark ? 'border-blue-500/20'                     : 'border-blue-300',
     scrollbar:'custom-scrollbar',
   }
 
@@ -75,40 +75,40 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
       className={`fixed inset-0 z-200 flex items-center justify-center p-4 ${d.overlay} backdrop-blur-sm`}
     >
       <div
-        className={`relative flex flex-col w-full max-w-3xl max-h-[88vh] rounded-2xl border shadow-2xl ${d.modal} overflow-hidden`}
+        className={`relative flex flex-col w-full max-w-4xl max-h-[88vh] rounded-2xl border shadow-2xl ${d.modal} overflow-hidden`}
       >
         {/* ── Header ── */}
-        <div className={`shrink-0 px-5 py-4 border-b ${d.header} ${d.divider}`}>
+        <div className={`shrink-0 px-6 py-5 border-b ${d.header} ${d.divider}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className={`text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${d.metaPill}`}>
+                <span className={`text-xs font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${d.metaPill}`}>
                   Codeforces
                 </span>
                 {problem.contestId && (
-                  <span className={`text-[10px] ${d.muted}`}>
+                  <span className={`text-xs ${d.muted}`}>
                     Contest {problem.contestId} · Problem {problem.problemIndex}
                   </span>
                 )}
               </div>
-              <h2 className={`text-base font-bold leading-tight ${d.title} truncate`}>
+              <h2 className={`text-lg font-bold leading-tight ${d.title} truncate`}>
                 {problem.problemName}
               </h2>
 
               {/* Meta row */}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {problem.timeLimit && (
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${d.metaPill}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${d.metaPill}`}>
                     <FiClock className="w-3 h-3" /> {problem.timeLimit}
                   </span>
                 )}
                 {problem.memoryLimit && (
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${d.metaPill}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${d.metaPill}`}>
                     <FiCpu className="w-3 h-3" /> {problem.memoryLimit}
                   </span>
                 )}
                 {problem.rating && (
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${d.metaPill} ${ratingColor}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${d.metaPill} ${ratingColor}`}>
                     <FiStar className="w-3 h-3" /> {problem.rating}
                   </span>
                 )}
@@ -119,7 +119,7 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   <FiTag className={`w-3 h-3 ${d.muted} shrink-0`} />
                   {problem.tags.map(tag => (
-                    <span key={tag} className={`text-[10px] px-1.5 py-0.5 rounded-md border ${d.pill}`}>
+                    <span key={tag} className={`text-xs px-1.5 py-0.5 rounded-md border ${d.pill}`}>
                       {tag}
                     </span>
                   ))}
@@ -139,20 +139,20 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
         </div>
 
         {/* ── Body — scrollable problem statement ── */}
-        <div className={`flex-1 overflow-y-auto px-5 py-4 ${d.scrollbar}`}>
+        <div className={`flex-1 overflow-y-auto px-6 py-5 ${d.scrollbar}`}>
           <div
             ref={contentRef}
-            className={`text-sm ${d.body} problem-statement-render`}
+            className={`text-xl ${d.body} problem-statement-render leading-relaxed`}
           />
         </div>
 
         {/* ── Footer ── */}
-        <div className={`shrink-0 flex items-center justify-between gap-3 px-5 py-3 border-t ${d.footer} ${d.divider}`}>
+        <div className={`shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t ${d.footer} ${d.divider}`}>
           <a
             href={problem.problemUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${d.cfBtn}`}
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors ${d.cfBtn}`}
           >
             <FiExternalLink className="w-3.5 h-3.5" />
             View on Codeforces
@@ -162,14 +162,14 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
             <button
               type="button"
               onClick={onClose}
-              className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${d.cfBtn}`}
+              className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors ${d.cfBtn}`}
             >
               Close
             </button>
             <button
               type="button"
               onClick={onSubmit}
-              className={`inline-flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg font-semibold transition-colors ${d.submitBtn}`}
+              className={`inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg font-semibold transition-colors ${d.submitBtn}`}
               title="Open Codeforces submit page with your code pre-filled"
             >
               <FiSend className="w-3.5 h-3.5" />

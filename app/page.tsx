@@ -275,7 +275,7 @@ const OnlineCompiler = () => {
       if (age > 86400000) { localStorage.removeItem('cf-active-problem'); return }
       loadProblem(payload)
       Swal.fire({
-        toast: true, position: 'top-end', icon: 'info', showConfirmButton: false,
+        toast: true, position: 'bottom-end', icon: 'info', showConfirmButton: false,
         timer: 3000, timerProgressBar: true,
         title: `Problem restored: ${payload.problemName}`,
         background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
@@ -296,7 +296,7 @@ const OnlineCompiler = () => {
         localStorage.setItem('cf-active-problem', JSON.stringify(payload))
       }
       Swal.fire({
-        toast: true, position: 'top-end', icon: 'success', showConfirmButton: false,
+        toast: true, position: 'bottom-end', icon: 'success', showConfirmButton: false,
         timer: 2500, timerProgressBar: true,
         title: `Loaded: ${payload.problemName}`,
         background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
@@ -918,8 +918,8 @@ const OnlineCompiler = () => {
     bgSec: isDarkMode ? 'bg-white/10' : 'bg-white/80',
     bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-purple-100/70',
     bgInput: isDarkMode ? 'bg-slate-900/20' : 'bg-white',
-    resizer: isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-linear-to-r from-purple-300/40 to-pink-300/40 hover:from-purple-400/60 hover:to-pink-400/60',
-    resizerBar: isDarkMode ? 'bg-white/20 group-hover:bg-white/40' : 'bg-linear-to-r from-purple-500/60 to-pink-500/60 group-hover:from-purple-600/80 group-hover:to-pink-600/80',
+    resizer: '',
+    resizerBar: isDarkMode ? 'bg-white group-hover:bg-white' : 'bg-black group-hover:bg-black',
   }
 
   // ─── Render file tree ──────────────────────────────────────────────────
@@ -933,7 +933,7 @@ const OnlineCompiler = () => {
       return (
         <div key={node.id}>
           <div
-            className={`flex items-center gap-1 px-1.5 py-0.5 cursor-pointer rounded-sm text-xs transition-colors group
+            className={`flex items-center gap-1 px-1.5 py-0.5 cursor-pointer rounded-sm text-sm transition-colors group
               ${isActive && !isFolder ? (isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-200/60 text-purple-900') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-gray-700 hover:bg-purple-100/40')}
             `}
             style={{ paddingLeft: `${depth * 10 + 6}px` }}
@@ -954,7 +954,7 @@ const OnlineCompiler = () => {
                 onChange={e => setRenameValue(e.target.value)}
                 onBlur={commitRename}
                 onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingId(null) }}
-                className={`flex-1 min-w-0 px-1 py-0 text-xs rounded ${isDarkMode ? 'bg-slate-700 text-white border-slate-500' : 'bg-white text-gray-900 border-purple-300'} border outline-none`}
+                className={`flex-1 min-w-0 px-1 py-0 text-sm rounded ${isDarkMode ? 'bg-slate-700 text-white border-slate-500' : 'bg-white text-gray-900 border-purple-300'} border outline-none`}
                 title="Rename file or folder"
                 onClick={e => e.stopPropagation()}
               />
@@ -999,9 +999,9 @@ const OnlineCompiler = () => {
       )}
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-cyan-500/10 to-blue-600/10' : 'bg-linear-to-br from-pink-400/30 to-purple-500/30'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-purple-500/10 to-pink-600/10' : 'bg-linear-to-br from-cyan-400/30 to-indigo-500/30'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-linear-to-br from-teal-500/5 to-cyan-600/5' : 'bg-linear-to-br from-orange-300/25 to-pink-400/25'} rounded-full blur-3xl`} />
+        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-600/15 to-blue-800/15' : 'bg-linear-to-br from-blue-300/35 to-blue-500/35'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-700/15 to-indigo-900/15' : 'bg-linear-to-br from-blue-400/35 to-indigo-500/35'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-linear-to-br from-indigo-600/8 to-blue-700/8' : 'bg-linear-to-br from-blue-200/30 to-indigo-400/30'} rounded-full blur-3xl`} />
       </div>
 
       <div className="h-full w-full flex flex-col overflow-hidden relative z-10">
@@ -1057,7 +1057,7 @@ const OnlineCompiler = () => {
                     <button
                       type="button"
                       onClick={() => setProblemPanelOpen(true)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150 text-xs font-medium shrink-0`}
+                      className="flex items-center gap-1 px-3 py-1 rounded bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border border-blue-400/40 transition-all duration-150 text-xs font-semibold shrink-0 shadow-md hover:shadow-lg"
                       title="View problem statement"
                     >
                       <FiFileText className="h-3.5 w-3.5" />
@@ -1126,7 +1126,7 @@ const OnlineCompiler = () => {
                 {/* Sidebar drag handle — desktop only */}
                 {!isMobile && (
                   <div
-                    className={`w-1.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full flex items-center justify-center group shrink-0`}
+                    className={`w-1 mx-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full flex items-center justify-center group shrink-0`}
                     onMouseDown={() => setIsResizingSidebar(true)}
                   >
                     <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
@@ -1268,18 +1268,19 @@ const OnlineCompiler = () => {
               {isMobile && (
                 <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
                   onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }}>
-                  <div className={`h-0.5 w-12 ${ts.resizerBar} group-active:bg-white/70 rounded-full transition-colors duration-200`} />
+                  <div className={`h-0.5 w-12 ${ts.resizerBar} ${isDarkMode ? 'group-active:bg-white/70' : 'group-active:bg-black/70'} rounded-full transition-colors duration-200`} />
                 </div>
               )}
 
               {/* Desktop Resizable Divider */}
-              <div
-                className={`${isMobile ? 'hidden' : 'lg:flex'} w-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group absolute top-0 bottom-0 z-10 -translate-x-1/2`}
-                style={{ left: `${editorWidth}%` }}
-                onMouseDown={handleMouseDown}
-              >
-                <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
-              </div>
+              {!isMobile && (
+                <div
+                  className={`hidden lg:flex w-1 mx-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group shrink-0`}
+                  onMouseDown={handleMouseDown}
+                >
+                  <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
+                </div>
+              )}
 
               {/* ─── Right Panel: simple I/O (normal) or test cases (CF problem) ── */}
               <div

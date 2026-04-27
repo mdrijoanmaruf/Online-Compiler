@@ -16,23 +16,15 @@ export default function ProblemMetaBar({ problem, isDark, onClear }: ProblemMeta
 
   return (
     <div className={`flex items-center gap-2 px-2 py-1 ${bg} border ${border} rounded-lg text-xs overflow-hidden`}>
-      {/* CF badge */}
       <span className="shrink-0 font-bold text-orange-500 bg-orange-500/10 border border-orange-500/30 px-1.5 py-0.5 rounded text-[10px]">
         CF
       </span>
-
-      {/* Problem name */}
       <span className={`font-semibold ${text} truncate max-w-55`}>{problem.problemName}</span>
-
-      {/* Separator */}
       <span className={`${muted} hidden sm:inline`}>•</span>
 
-      {/* Rating */}
       {problem.rating && (
         <span className={`${muted} hidden sm:inline shrink-0`}>{problem.rating} ★</span>
       )}
-
-      {/* Limits */}
       {(problem.timeLimit || problem.memoryLimit) && (
         <>
           <span className={`${muted} hidden sm:inline`}>•</span>
@@ -43,9 +35,7 @@ export default function ProblemMetaBar({ problem, isDark, onClear }: ProblemMeta
           </span>
         </>
       )}
-
       <div className="flex items-center gap-1 ml-auto shrink-0">
-        {/* View on CF */}
         <a
           href={problem.problemUrl}
           target="_blank"
@@ -55,8 +45,6 @@ export default function ProblemMetaBar({ problem, isDark, onClear }: ProblemMeta
         >
           ↗
         </a>
-
-        {/* Clear */}
         <button
           type="button"
           onClick={onClear}

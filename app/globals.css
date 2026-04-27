@@ -25,22 +25,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Dynamic progress bar — width driven by --progress CSS variable */
 .progress-fill {
   width: var(--progress, 0%);
 }
 
-/* Normal-mode I/O panel input height — driven by --io-split CSS variable */
 .io-split-input {
   height: var(--io-split, 40%);
 }
 
-/* Language colour dot — background driven by --lang-color CSS variable */
 .lang-dot {
   background-color: var(--lang-color, #94a3b8);
 }
 
-/* Custom scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
@@ -58,7 +54,6 @@ body {
   background: rgba(148, 163, 184, 0.7);
 }
 
-/* ── Problem statement render (Codeforces HTML injected via dangerouslySetInnerHTML) ── */
 .problem-statement-render .problem-statement {
   font-size: 13px;
   line-height: 1.6;
@@ -87,7 +82,6 @@ body {
   margin: 3px 0;
 }
 
-/* Sample test cases */
 .problem-statement-render .sample-tests .input,
 .problem-statement-render .sample-tests .output {
   margin-bottom: 8px;
@@ -118,27 +112,22 @@ body {
   display: block;
 }
 
-/* Hide the input-output-copier buttons in the rendered statement */
 .problem-statement-render .input-output-copier {
   display: none !important;
 }
 
-/* Hide the CF problem header (already shown in ProblemPanel header) */
 .problem-statement-render .problem-statement .header {
   display: none;
 }
 
-/* Math rendering fallback */
 .problem-statement-render .MathJax_Preview {
   display: none;
 }
 
-/* Constraints / note section */
 .problem-statement-render .note {
   margin-top: 10px;
 }
 
-/* Light mode overrides */
 @media (prefers-color-scheme: light) {
   .problem-statement-render .sample-tests pre {
     background: rgba(0, 0, 0, 0.04);

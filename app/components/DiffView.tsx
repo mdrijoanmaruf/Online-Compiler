@@ -15,8 +15,6 @@ function splitLines(text: string): string[] {
   return text.trimEnd().split('\n')
 }
 
-// Returns character-level diffs as [op, text] tuples.
-// op: -1 = chars only in `from`, 0 = equal, 1 = chars only in `to`
 function charDiff(from: string, to: string) {
   const diffs = dmp.diff_main(from, to)
   dmp.diff_cleanupSemantic(diffs)
@@ -44,18 +42,15 @@ export default function DiffView({ expected, actual, isDark }: DiffViewProps) {
   const charExp  = isDark ? 'bg-red-500/50 text-red-200 rounded-sm'   : 'bg-red-200 text-red-800 rounded-sm'
   const charAct  = isDark ? 'bg-green-500/50 text-green-200 rounded-sm' : 'bg-green-200 text-green-800 rounded-sm'
 
-  // Renders one line. When the line differs from its counterpart, highlights
-  // characters that are unique to this side using diff-match-patch.
   function renderLine(line: string, other: string, isDiff: boolean, charCls: string) {
     if (!isDiff) return line || <span className="opacity-30">&nbsp;</span>
-    // charDiff(line, other): op -1 = chars in `line` not in `other` → highlight on this side
     const diffs = charDiff(line, other)
     return (
       <>
         {diffs.map(([op, chunk], i) => {
           if (op === 0)  return <span key={i}>{chunk}</span>
           if (op === -1) return <span key={i} className={charCls}>{chunk}</span>
-          return null  // op 1 = chars only in other side, not shown here
+          return null
         })}
       </>
     )

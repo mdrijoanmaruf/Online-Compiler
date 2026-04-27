@@ -18,7 +18,6 @@ import ProblemMetaBar from './components/ProblemMetaBar'
 import TestCasePanel from './components/TestCasePanel'
 import EditorErrorBoundary from './components/EditorErrorBoundary'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 interface FileNode {
   id: string
   name: string
@@ -27,7 +26,6 @@ interface FileNode {
   children?: FileNode[]
 }
 
-// ─── Language configurations ─────────────────────────────────────────────────
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript', version: '20.17.0', extension: 'js', color: '#f7df1e', monacoLanguage: 'javascript', wandboxCompiler: 'nodejs-20.17.0', template: 'console.log("Hello, World!");' },
   { id: 'python', name: 'Python', version: '3.12.7', extension: 'py', color: '#3776ab', monacoLanguage: 'python', wandboxCompiler: 'cpython-3.12.7', template: 'print("Hello, World!")' },
@@ -41,7 +39,6 @@ const LANGUAGES = [
   { id: 'rust', name: 'Rust', version: '1.82.0', extension: 'rs', color: '#000000', monacoLanguage: 'rust', wandboxCompiler: 'rust-1.82.0', template: 'fn main() {\n    println!("Hello, World!");\n}' },
 ]
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 let _idCounter = 0
 const uid = () => `f${++_idCounter}_${Date.now()}`
 
@@ -157,11 +154,7 @@ function makeDefaultTestCase(id = 1): TestCaseState {
   return { id, label: `Sample ${id}`, input: '', expectedOutput: '', actualOutput: '', status: 'idle' }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Component
-// ═════════════════════════════════════════════════════════════════════════════
 const OnlineCompiler = () => {
-  // ─── State ───────────────────────────────────────────────────────────────
   const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGES[0])
   const [fileTree, setFileTree] = useState<FileNode[]>(() => makeDefaultTree(LANGUAGES[0]))
   const [activeFileId, setActiveFileId] = useState<string>('')
@@ -179,18 +172,16 @@ const OnlineCompiler = () => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string | null } | null>(null)
   const [isDarkMode, setIsDarkMode] = useState(true)
 
-  // ─── Normal I/O State ────────────────────────────────────────────────────
   const [stdin, setStdin] = useState('')
   const [normalOutput, setNormalOutput] = useState('')
   const [normalOutputStatus, setNormalOutputStatus] = useState<'idle' | 'running' | 'error' | 'success'>('idle')
   const [normalSplitPct, setNormalSplitPct] = useState(40)
   const [isResizingNormal, setIsResizingNormal] = useState(false)
 
-  // ─── Sidebar resize State ────────────────────────────────────────────────
+
   const [sidebarWidth, setSidebarWidth] = useState(200)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false)
 
-  // ─── Problem + Test Case State ───────────────────────────────────────────
   const [problem, setProblem] = useState<ProblemPayload | null>(null)
   const [problemPanelOpen, setProblemPanelOpen] = useState(false)
   const [testCases, setTestCases] = useState<TestCaseState[]>([makeDefaultTestCase(1)])
@@ -202,22 +193,20 @@ const OnlineCompiler = () => {
   const outputContainerRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const runModeRef = useRef<() => void>(() => {})
-  // Refs so Monaco commands (registered once at mount) never hold stale closures
+
   const runAllTestsRef = useRef<() => Promise<void>>(async () => {})
   const addTestCaseRef = useRef<() => void>(() => {})
   const testCasesRef = useRef<TestCaseState[]>([])
   const normalPanelRef = useRef<HTMLDivElement>(null)
 
-  // ─── Derived ─────────────────────────────────────────────────────────────
   const activeFile = activeFileId ? findNode(fileTree, activeFileId) : null
   const code = activeFile?.content || ''
 
-  // ─── Auto-select language from file extension ──────────────────────────
   useEffect(() => {
     if (!activeFile) return
     const lang = getLanguageByExtension(activeFile.name)
     if (lang && lang.id !== selectedLanguage.id) setSelectedLanguage(lang)
-  }, [activeFileId, activeFile?.name]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeFileId, activeFile?.name]) 
 
   const setCode = useCallback((value: string) => {
     if (!activeFileId) return
@@ -229,7 +218,7 @@ const OnlineCompiler = () => {
     })
   }, [activeFileId])
 
-  // ─── Initialise first file ──────────────────────────────────────────────
+ 
   useEffect(() => {
     if (!activeFileId && fileTree.length > 0) {
       const first = findFirstFile(fileTree)
@@ -238,9 +227,9 @@ const OnlineCompiler = () => {
         setOpenTabs([first.id])
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) 
 
-  // ─── Load theme from localStorage ─────────────────────────────────────
+
   useEffect(() => {
     const saved = localStorage.getItem('compiler-theme')
     if (saved === 'light') setIsDarkMode(false)
@@ -258,14 +247,11 @@ const OnlineCompiler = () => {
       status: 'idle',
     })))
     setActiveTestCase(0)
-    // Default to C++ for Codeforces
     const cpp = LANGUAGES.find(l => l.id === 'cpp')
     if (cpp) setSelectedLanguage(cpp)
-    // Update tab title so users can identify this tab at a glance
     document.title = `${payload.problemName} — Rijoan Compiler`
   }, [])
 
-  // ─── Restore problem from localStorage (persist across refreshes) ──────
   useEffect(() => {
     const saved = localStorage.getItem('cf-active-problem')
     if (!saved) return
@@ -280,15 +266,12 @@ const OnlineCompiler = () => {
         title: `Problem restored: ${payload.problemName}`,
         background: 'rgba(15, 23, 42, 0.95)', color: '#f8fafc',
       })
-    } catch { /* ignore */ }
+    } catch {  }
   }, [loadProblem])
 
-  // ─── Listen for extension event ────────────────────────────────────────
   useEffect(() => {
     const handler = (e: Event) => {
       const payload = (e as CustomEvent<ProblemPayload>).detail
-      // localStorage was already written by the content script before this event;
-      // skip duplicate load if the restore-on-mount effect already loaded the same session.
       const saved = localStorage.getItem('cf-active-problem')
       const alreadyLoaded = saved && (() => { try { return JSON.parse(saved).sessionId === payload.sessionId } catch { return false } })()
       if (!alreadyLoaded) {
@@ -306,7 +289,6 @@ const OnlineCompiler = () => {
     return () => window.removeEventListener('ext:problem-loaded', handler)
   }, [loadProblem])
 
-  // ─── Run in normal mode (no CF problem) ───────────────────────────────
   const runNormal = useCallback(async () => {
     if (!code.trim()) {
       Swal.fire({ title: 'No Code', text: 'Please enter some code to execute.', icon: 'warning', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#3b82f6' })
@@ -347,17 +329,13 @@ const OnlineCompiler = () => {
 
   function handleSubmitOnCF() {
     if (!problem || !code.trim()) return
-    // Relay code + language to the extension content script via postMessage.
-    // compiler-injector.js is listening and will persist to chrome.storage.local
-    // so the CF content script can auto-fill the submit form when the tab opens.
+
     window.postMessage({
       type: 'cf-pending-submit',
       code,
       languageId: selectedLanguage.id,
       problemUrl: problem.problemUrl,
     }, '*')
-    // 400ms gives the compiler-injector message handler enough time to write
-    // to chrome.storage.local before the CF tab opens and tryAutoFillSubmit runs.
     setTimeout(() => window.open(problem.problemUrl, '_blank'), 400)
   }
 
@@ -385,7 +363,6 @@ const OnlineCompiler = () => {
     localStorage.removeItem('cf-active-problem')
   }
 
-  // ─── Mobile check ──────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
       const m = window.innerWidth < 1024
@@ -397,7 +374,6 @@ const OnlineCompiler = () => {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // ─── Close context menu on click outside ───────────────────────────────
   useEffect(() => {
     if (!contextMenu) return
     const handler = () => setContextMenu(null)
@@ -405,7 +381,6 @@ const OnlineCompiler = () => {
     return () => window.removeEventListener('click', handler)
   }, [contextMenu])
 
-  // ─── Focus rename input ────────────────────────────────────────────────
   useEffect(() => {
     if (renamingId && renameInputRef.current) {
       renameInputRef.current.focus()
@@ -413,7 +388,6 @@ const OnlineCompiler = () => {
     }
   }, [renamingId])
 
-  // ─── Save preferences ─────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => {
       localStorage.setItem('compiler-language', selectedLanguage.id)
@@ -422,7 +396,7 @@ const OnlineCompiler = () => {
       localStorage.setItem('compiler-theme', isDarkMode ? 'dark' : 'light')
       localStorage.setItem('compiler-sidebar', sidebarOpen ? 'open' : 'closed')
       localStorage.setItem('compiler-sidebar-width', sidebarWidth.toString())
-      try { localStorage.setItem('compiler-file-tree', JSON.stringify(fileTree)) } catch { /* ignore */ }
+      try { localStorage.setItem('compiler-file-tree', JSON.stringify(fileTree)) } catch { }
       localStorage.setItem('compiler-active-file', activeFileId)
       localStorage.setItem('compiler-open-tabs', JSON.stringify(openTabs))
       localStorage.setItem('compiler-stdin', stdin)
@@ -430,7 +404,6 @@ const OnlineCompiler = () => {
     return () => clearTimeout(t)
   }, [selectedLanguage, editorWidth, mobileEditorHeight, isDarkMode, sidebarOpen, sidebarWidth, fileTree, activeFileId, openTabs, stdin])
 
-  // ─── Load preferences ─────────────────────────────────────────────────
   useEffect(() => {
     const savedLang = localStorage.getItem('compiler-language')
     const savedTree = localStorage.getItem('compiler-file-tree')
@@ -451,7 +424,7 @@ const OnlineCompiler = () => {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setFileTree(parsed)
           if (savedTabs) {
-            try { setOpenTabs(JSON.parse(savedTabs)) } catch { /* ignore */ }
+            try { setOpenTabs(JSON.parse(savedTabs)) } catch { }
           }
           if (savedActive) {
             const node = findNode(parsed, savedActive)
@@ -462,9 +435,8 @@ const OnlineCompiler = () => {
             }
           }
         }
-      } catch { /* ignore */ }
+      } catch { }
     }
-
     if (savedSidebar === 'closed') setSidebarOpen(false)
     if (savedEditorWidth) { const v = parseFloat(savedEditorWidth); if (v >= 20 && v <= 80) setEditorWidth(v) }
     if (savedMobileEditorHeight) { const v = parseFloat(savedMobileEditorHeight); if (v >= 25 && v <= 75) setMobileEditorHeight(v) }
@@ -475,14 +447,12 @@ const OnlineCompiler = () => {
     if (savedStdin) setStdin(savedStdin)
   }, [])
 
-  // ─── Monaco theme on dark mode change ──────────────────────────────────
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.monaco.editor.setTheme(isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight')
     }
   }, [isDarkMode])
 
-  // ─── Resizing ──────────────────────────────────────────────────────────
   const handleMouseDown = (e: React.MouseEvent) => { setIsResizing(true); e.preventDefault() }
 
   useEffect(() => {
@@ -518,7 +488,6 @@ const OnlineCompiler = () => {
     }
   }, [isResizing, isMobile])
 
-  // ─── Normal mode I/O panel vertical resizer ────────────────────────────
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!normalPanelRef.current || !isResizingNormal) return
@@ -537,7 +506,6 @@ const OnlineCompiler = () => {
     }
   }, [isResizingNormal])
 
-  // ─── Sidebar resize ────────────────────────────────────────────────────
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!isResizingSidebar || !containerRef.current) return
@@ -555,7 +523,6 @@ const OnlineCompiler = () => {
     }
   }, [isResizingSidebar])
 
-  // ─── Monaco Editor mount ───────────────────────────────────────────────
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = { editor, monaco }
     monaco.editor.defineTheme('liquidGlassDark', {
@@ -571,14 +538,14 @@ const OnlineCompiler = () => {
         { token: 'function', foreground: 'DCDCAA' },
       ],
       colors: {
-        'editor.background': '#0f172a40', 'editor.foreground': '#f8fafc',
+        'editor.background': '#000000', 'editor.foreground': '#f8fafc',
         'editor.lineHighlightBackground': '#ffffff08', 'editor.selectionBackground': '#3b82f640',
         'editor.inactiveSelectionBackground': '#3b82f620', 'editorCursor.foreground': '#3b82f6',
         'editorLineNumber.foreground': '#64748b', 'editorLineNumber.activeForeground': '#94a3b8',
         'editor.findMatchBackground': '#3b82f640', 'editor.findMatchHighlightBackground': '#3b82f620',
-        'editorWidget.background': '#1e293b', 'editorWidget.border': '#334155',
-        'editorSuggestWidget.background': '#1e293b', 'editorSuggestWidget.border': '#334155',
-        'editorHoverWidget.background': '#1e293b', 'editorHoverWidget.border': '#334155',
+        'editorWidget.background': '#0f172a', 'editorWidget.border': '#1e293b',
+        'editorSuggestWidget.background': '#0f172a', 'editorSuggestWidget.border': '#1e293b',
+        'editorHoverWidget.background': '#0f172a', 'editorHoverWidget.border': '#1e293b',
       }
     })
     monaco.editor.defineTheme('liquidGlassLight', {
@@ -606,7 +573,6 @@ const OnlineCompiler = () => {
     })
     monaco.editor.setTheme(isDarkMode ? 'liquidGlassDark' : 'liquidGlassLight')
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-      // Route to correct run mode — problem state captured via ref to avoid stale closure
       runModeRef.current()
     })
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => runAllTestsRef.current())
@@ -622,7 +588,6 @@ const OnlineCompiler = () => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => editor.getAction('editor.action.formatDocument')?.run())
   }
 
-  // ─── Test case helpers ─────────────────────────────────────────────────
   const updateTestCase = useCallback((index: number, patch: Partial<TestCaseState>) => {
     setTestCases(prev => prev.map((tc, i) => i === index ? { ...tc, ...patch } : tc))
   }, [])
@@ -646,7 +611,6 @@ const OnlineCompiler = () => {
     })
   }, [])
 
-  // ─── Run single test ───────────────────────────────────────────────────
   const runActiveTest = useCallback(async (indexOverride?: number) => {
     if (!code.trim()) {
       Swal.fire({ title: 'No Code', text: 'Please enter some code to execute.', icon: 'warning', background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937', confirmButtonColor: '#3b82f6' })
@@ -682,7 +646,7 @@ const OnlineCompiler = () => {
       } else if (tc.expectedOutput.trim()) {
         status = actualOutput.trim() === tc.expectedOutput.trim() ? 'passed' : 'failed'
       } else {
-        status = 'idle' // no expected output — just show actual
+        status = 'idle'
       }
 
       updateTestCase(idx, { actualOutput, status, executionTime: elapsed })
@@ -695,15 +659,12 @@ const OnlineCompiler = () => {
     }
   }, [code, activeTestCase, testCases, selectedLanguage.wandboxCompiler, isDarkMode, updateTestCase])
 
-  // Keep runModeRef in sync so Monaco's Ctrl+Enter never has a stale closure.
   useEffect(() => {
     runModeRef.current = problem ? runActiveTest : runNormal
   }, [problem, runActiveTest, runNormal])
 
-  // ─── Run all tests ─────────────────────────────────────────────────────
   const runAllTests = useCallback(async () => {
     if (!code.trim()) return
-    // Snapshot so mid-loop additions/deletions don't shift indices or cause undefined reads.
     const snapshot = testCases.slice()
     setIsRunningAll(true)
     for (let i = 0; i < snapshot.length; i++) {
@@ -739,12 +700,10 @@ const OnlineCompiler = () => {
     setIsRunningAll(false)
   }, [code, testCases, selectedLanguage.wandboxCompiler, updateTestCase])
 
-  // Keep remaining Monaco command refs current — must live after declarations.
   useEffect(() => { runAllTestsRef.current = runAllTests }, [runAllTests])
   useEffect(() => { addTestCaseRef.current = addTestCase }, [addTestCase])
   useEffect(() => { testCasesRef.current = testCases }, [testCases])
 
-  // ─── Language change ───────────────────────────────────────────────────
   const handleLanguageChange = (language: typeof LANGUAGES[number]) => {
     setSelectedLanguage(language)
     const newTree = makeDefaultTree(language)
@@ -756,7 +715,6 @@ const OnlineCompiler = () => {
     setExecutionTime(null)
   }
 
-  // ─── File tree operations ──────────────────────────────────────────────
   const openFile = (node: FileNode) => {
     if (node.type !== 'file') return
     setActiveFileId(node.id)
@@ -863,14 +821,12 @@ const OnlineCompiler = () => {
     setRenamingId(null)
   }
 
-  // ─── Context menu handler ─────────────────────────────────────────────
   const handleContextMenu = (e: React.MouseEvent, nodeId: string | null) => {
     e.preventDefault()
     e.stopPropagation()
     setContextMenu({ x: e.clientX, y: e.clientY, nodeId })
   }
 
-  // ─── Download ZIP ──────────────────────────────────────────────────────
   const downloadZip = async () => {
     const files = collectFiles(fileTree)
     if (files.length === 0) return
@@ -893,17 +849,15 @@ const OnlineCompiler = () => {
     document.body.appendChild(a); a.click(); document.body.removeChild(a)
     URL.revokeObjectURL(a.href)
   }
-
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(code)
       Swal.fire({ title: 'Copied!', text: 'Code copied to clipboard.', icon: 'success', timer: 2000, showConfirmButton: false, background: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : '#fff', color: isDarkMode ? '#f8fafc' : '#1f2937' })
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode)
 
-  // ─── Theme styles ──────────────────────────────────────────────────────
   const glassStyle = isDarkMode
     ? "backdrop-blur-3xl shadow-2xl shadow-black/20"
     : "backdrop-blur-3xl shadow-2xl shadow-gray-500/20"
@@ -917,12 +871,11 @@ const OnlineCompiler = () => {
     bgPrimary: isDarkMode ? 'bg-white/5' : 'bg-purple-50/70',
     bgSec: isDarkMode ? 'bg-white/10' : 'bg-white/80',
     bgHover: isDarkMode ? 'hover:bg-white/20' : 'hover:bg-purple-100/70',
-    bgInput: isDarkMode ? 'bg-slate-900/20' : 'bg-white',
+    bgInput: isDarkMode ? 'bg-slate-950/40' : 'bg-white',
     resizer: '',
     resizerBar: isDarkMode ? 'bg-white group-hover:bg-white' : 'bg-black group-hover:bg-black',
   }
 
-  // ─── Render file tree ──────────────────────────────────────────────────
   const renderTree = (nodes: FileNode[], depth = 0) => {
     return nodes.map(node => {
       const isFolder = node.type === 'folder'
@@ -980,15 +933,11 @@ const OnlineCompiler = () => {
     })
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // Render
-  // ═════════════════════════════════════════════════════════════════════════
   return (
     <div
-      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
+      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
       suppressHydrationWarning
     >
-      {/* ─── Problem Modal ─────────────────────────────────────────────── */}
       {problem && problemPanelOpen && (
         <ProblemPanel
           problem={problem}
@@ -997,16 +946,14 @@ const OnlineCompiler = () => {
           onSubmit={() => { setProblemPanelOpen(false); handleSubmitOnCF() }}
         />
       )}
-      {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-600/15 to-blue-800/15' : 'bg-linear-to-br from-blue-300/35 to-blue-500/35'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-700/15 to-indigo-900/15' : 'bg-linear-to-br from-blue-400/35 to-indigo-500/35'} rounded-full blur-3xl animate-pulse`} />
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-linear-to-br from-indigo-600/8 to-blue-700/8' : 'bg-linear-to-br from-blue-200/30 to-indigo-400/30'} rounded-full blur-3xl`} />
+        <div className={`absolute -top-40 -right-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-600/10 to-blue-800/10' : 'bg-linear-to-br from-blue-300/35 to-blue-500/35'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute -bottom-40 -left-40 w-80 h-80 ${isDarkMode ? 'bg-linear-to-br from-blue-700/10 to-indigo-900/10' : 'bg-linear-to-br from-blue-400/35 to-indigo-500/35'} rounded-full blur-3xl animate-pulse`} />
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 ${isDarkMode ? 'bg-linear-to-br from-indigo-600/5 to-blue-700/5' : 'bg-linear-to-br from-blue-200/30 to-indigo-400/30'} rounded-full blur-3xl`} />
       </div>
 
       <div className="h-full w-full flex flex-col overflow-hidden relative z-10">
         <div className={`${glassStyle} flex-1 flex flex-col min-h-0 overflow-hidden p-1 sm:p-2 lg:p-3`}>
-          {/* ─── Header / Toolbar ──────────────────────────────────────── */}
           <div className={`flex items-center justify-between gap-2 mb-1 px-2 py-1 sm:py-1.5 ${ts.bgPrimary} rounded-lg ${ts.borderLight} border`}>
             <div className="flex items-center justify-between gap-1.5 sm:gap-2 flex-1 min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -1018,13 +965,9 @@ const OnlineCompiler = () => {
                 >
                   <FiSidebar className="h-3.5 w-3.5" />
                 </button>
-
-                {/* CF metadata bar — shown when a problem is loaded */}
                 {problem && (
                   <ProblemMetaBar problem={problem} isDark={isDarkMode} onClear={clearProblem} />
                 )}
-
-                {/* Language selector — always visible so user can change language */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="lang-dot w-2 h-2 rounded-full shrink-0" style={{ '--lang-color': selectedLanguage.color } as React.CSSProperties} />
                   <select
@@ -1038,7 +981,6 @@ const OnlineCompiler = () => {
                     ))}
                   </select>
                 </div>
-
                 <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
@@ -1051,7 +993,6 @@ const OnlineCompiler = () => {
                 <button type="button" onClick={downloadZip} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Download (ZIP if multiple files)">
                   <FiDownload className="h-3.5 w-3.5" />
                 </button>
-                {/* View Problem + Submit buttons (shown when problem loaded) */}
                 {problem && (
                   <>
                     <button
@@ -1095,14 +1036,12 @@ const OnlineCompiler = () => {
             </div>
           </div>
 
-          {/* ─── Main Content ─────────────────────────────────────────── */}
-          <div ref={containerRef} className="flex-1 flex flex-col lg:flex-row min-h-0 relative gap-0">
 
-            {/* ─── File Explorer Sidebar ─────────────────────────────── */}
+          <div ref={containerRef} className="flex-1 flex flex-col lg:flex-row min-h-0 relative gap-0">
             {sidebarOpen && (
               <>
                 <div
-                  className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-900/95' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
+                  className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-950/98' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
                   style={isMobile ? undefined : { width: `${sidebarWidth}px` }}
                 >
                   <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
@@ -1123,7 +1062,6 @@ const OnlineCompiler = () => {
                     )}
                   </div>
                 </div>
-                {/* Sidebar drag handle — desktop only */}
                 {!isMobile && (
                   <div
                     className={`w-1 mx-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full flex items-center justify-center group shrink-0`}
@@ -1134,8 +1072,6 @@ const OnlineCompiler = () => {
                 )}
               </>
             )}
-
-            {/* ─── Context Menu ──────────────────────────────────────── */}
             {contextMenu && (
               <div
                 className={`fixed z-50 rounded-lg shadow-xl border ${isDarkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'} py-0.5 min-w-36`}
@@ -1176,16 +1112,12 @@ const OnlineCompiler = () => {
                 )}
               </div>
             )}
-
-            {/* ─── Editor + Test Case Area ───────────────────────────── */}
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-0">
-              {/* Code Editor Section */}
               <div className="flex flex-col min-w-0 w-full lg:w-auto" style={{
                 width: isMobile ? '100%' : `${editorWidth}%`,
                 height: isMobile ? `${mobileEditorHeight}%` : 'auto',
                 flex: isMobile ? 'none' : undefined,
               }}>
-                {/* Tabs */}
                 <div className={`flex items-center overflow-x-auto min-h-7 ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`}>
                   {openTabs.map(tabId => {
                     const node = findNode(fileTree, tabId)
@@ -1215,8 +1147,6 @@ const OnlineCompiler = () => {
                     )
                   })}
                 </div>
-
-                {/* Monaco Editor */}
                 <div className={`flex-1 relative rounded-b overflow-hidden ${ts.border} border border-t-0 min-h-0`} suppressHydrationWarning>
                   <div className={`absolute inset-0 ${isDarkMode ? 'from-slate-900/30 to-slate-800/30' : 'bg-white'} pointer-events-none z-0`} />
                   <div className={`relative z-10 h-full overflow-hidden ${isDarkMode ? '' : 'bg-white'}`}>
@@ -1263,16 +1193,12 @@ const OnlineCompiler = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Mobile Horizontal Resizer */}
               {isMobile && (
                 <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
                   onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }}>
                   <div className={`h-0.5 w-12 ${ts.resizerBar} ${isDarkMode ? 'group-active:bg-white/70' : 'group-active:bg-black/70'} rounded-full transition-colors duration-200`} />
                 </div>
               )}
-
-              {/* Desktop Resizable Divider */}
               {!isMobile && (
                 <div
                   className={`hidden lg:flex w-1 mx-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group shrink-0`}
@@ -1281,8 +1207,6 @@ const OnlineCompiler = () => {
                   <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
                 </div>
               )}
-
-              {/* ─── Right Panel: simple I/O (normal) or test cases (CF problem) ── */}
               <div
                 ref={outputContainerRef}
                 className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
@@ -1306,9 +1230,7 @@ const OnlineCompiler = () => {
                     onRunAll={runAllTests}
                   />
                 ) : (
-                  /* Normal mode — stdin + output with draggable split */
-                  <div ref={normalPanelRef} className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-900/20' : 'bg-white'}`} style={{ '--io-split': `${normalSplitPct}%` } as React.CSSProperties}>
-                    {/* Input */}
+                  <div ref={normalPanelRef} className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-950/30' : 'bg-white'}`} style={{ '--io-split': `${normalSplitPct}%` } as React.CSSProperties}>
                     <div className={`io-split-input flex flex-col border-b ${ts.border} overflow-hidden`}>
                       <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0`}>
                         <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Input</span>
@@ -1321,16 +1243,12 @@ const OnlineCompiler = () => {
                         spellCheck={false}
                       />
                     </div>
-
-                    {/* Vertical resizer */}
                     <div
                       className={`h-1.5 shrink-0 cursor-row-resize flex items-center justify-center group select-none ${ts.resizer}`}
                       onMouseDown={() => setIsResizingNormal(true)}
                     >
                       <div className={`h-0.5 w-8 rounded-full ${ts.resizerBar}`} />
                     </div>
-
-                    {/* Output */}
                     <div className="flex flex-col min-h-0 flex-1">
                       <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0 flex items-center justify-between`}>
                         <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${
@@ -1357,8 +1275,6 @@ const OnlineCompiler = () => {
                         }
                       </div>
                     </div>
-
-                    {/* Run button */}
                     <div className={`shrink-0 border-t ${ts.border} px-2.5 py-2`}>
                       <button
                         type="button"
@@ -1377,8 +1293,6 @@ const OnlineCompiler = () => {
               </div>
             </div>
           </div>
-
-          {/* Status bar hint */}
           {!isMobile && (
             <div className={`flex items-center gap-3 mt-1 px-2 text-[10px] ${ts.textMuted}`}>
               <span>Ctrl+Enter: Run</span>
@@ -1404,3 +1318,4 @@ const OnlineCompiler = () => {
 }
 
 export default OnlineCompiler
+

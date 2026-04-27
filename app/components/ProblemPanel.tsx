@@ -15,20 +15,17 @@ interface ProblemPanelProps {
 export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: ProblemPanelProps) {
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Lock body scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  // Sanitize and inject problem HTML via DOMPurify (replaces insecure regex approach)
   useEffect(() => {
     if (!contentRef.current || !problem.statementHtml) return
     const sanitized = DOMPurify.sanitize(problem.statementHtml, {
@@ -77,7 +74,6 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
       <div
         className={`relative flex flex-col w-full max-w-4xl max-h-[88vh] rounded-2xl border shadow-2xl ${d.modal} overflow-hidden`}
       >
-        {/* ── Header ── */}
         <div className={`shrink-0 px-6 py-5 border-b ${d.header} ${d.divider}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -94,8 +90,6 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
               <h2 className={`text-lg font-bold leading-tight ${d.title} truncate`}>
                 {problem.problemName}
               </h2>
-
-              {/* Meta row */}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {problem.timeLimit && (
                   <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${d.metaPill}`}>
@@ -113,8 +107,6 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
                   </span>
                 )}
               </div>
-
-              {/* Tags */}
               {problem.tags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   <FiTag className={`w-3 h-3 ${d.muted} shrink-0`} />
@@ -138,7 +130,6 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
           </div>
         </div>
 
-        {/* ── Body — scrollable problem statement ── */}
         <div className={`flex-1 overflow-y-auto px-6 py-5 ${d.scrollbar}`}>
           <div
             ref={contentRef}
@@ -146,7 +137,6 @@ export default function ProblemPanel({ problem, isDark, onClose, onSubmit }: Pro
           />
         </div>
 
-        {/* ── Footer ── */}
         <div className={`shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t ${d.footer} ${d.divider}`}>
           <a
             href={problem.problemUrl}

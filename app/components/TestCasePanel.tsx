@@ -86,7 +86,6 @@ export default function TestCasePanel({
   const handleInput    = useCallback((v: string) => onUpdateTestCase(activeIndex, { input: v }),          [activeIndex, onUpdateTestCase])
   const handleExpected = useCallback((v: string) => onUpdateTestCase(activeIndex, { expectedOutput: v }), [activeIndex, onUpdateTestCase])
 
-  // ── theme tokens ──────────────────────────────────────────────────────────
   const border   = isDark ? 'border-white/10'        : 'border-gray-200'
   const bgBase   = isDark ? 'bg-slate-900/20'        : 'bg-white'
   const bgSec    = isDark ? 'bg-white/[0.04]'        : 'bg-gray-50'
@@ -97,16 +96,12 @@ export default function TestCasePanel({
     ? OUTPUT_THEME[tc?.status ?? 'idle']
     : OUTPUT_THEME_LIGHT[tc?.status ?? 'idle']
 
-  // [field-sizing:content] auto-grows the textarea to its full content height —
-  // no fixed rows, no internal scrollbar ever.
   const monoInput = `w-full font-mono text-xs p-3 resize-none overflow-hidden [field-sizing:content] min-h-10 focus:outline-none bg-transparent ${bodyText} placeholder:opacity-30 placeholder:italic`
 
   if (!tc) return null
 
   return (
     <div className={`flex flex-col h-full ${bgBase}`}>
-
-      {/* ── Tab Bar ─────────────────────────────────────────────────────── */}
       <div className="relative shrink-0">
       <div ref={tabScrollRef} onScroll={checkOverflow} className={`flex items-center gap-1 px-2 py-1.5 border-b ${border} ${bgSec} overflow-x-auto custom-scrollbar`}>
         {testCases.map((t, i) => {
@@ -158,18 +153,13 @@ export default function TestCasePanel({
           +
         </button>
       </div>
-      {/* Right-edge fade — signals hidden tabs when the bar overflows */}
       {showRightFade && (
         <div className={`absolute right-0 top-0 bottom-0 w-8 pointer-events-none rounded-tr
           ${isDark ? 'bg-linear-to-l from-slate-900/80 to-transparent' : 'bg-linear-to-l from-gray-50/90 to-transparent'}`}
         />
       )}
       </div>
-
-      {/* ── Fields ──────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
-
-        {/* Input card */}
         <div className={`rounded-lg border ${border} overflow-hidden`}>
           <div className={`px-3 py-1 border-b ${border} ${bgSec}`}>
             <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${muted}`}>Input</span>
@@ -183,7 +173,6 @@ export default function TestCasePanel({
           />
         </div>
 
-        {/* Expected Output card */}
         <div className={`rounded-lg overflow-hidden border ${isDark ? 'border-indigo-500/25' : 'border-indigo-200'}`}>
           <div className={`px-3 py-1 border-b ${isDark ? 'border-indigo-500/25 bg-indigo-500/10' : 'border-indigo-100 bg-indigo-50'}`}>
             <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isDark ? 'text-indigo-400' : 'text-indigo-500'}`}>
@@ -198,8 +187,6 @@ export default function TestCasePanel({
             spellCheck={false}
           />
         </div>
-
-        {/* Actual Output card — only after run */}
         {tc.status !== 'idle' && (
           <div className={`rounded-lg overflow-hidden border ${ot.border || border}`}>
             <div className={`flex items-center justify-between px-3 py-1 border-b ${ot.header || `${bgSec} ${border}`}`}>
@@ -219,14 +206,10 @@ export default function TestCasePanel({
             </div>
           </div>
         )}
-
-        {/* Diff on failure */}
         {tc.status === 'failed' && (
           <DiffView expected={tc.expectedOutput} actual={tc.actualOutput} isDark={isDark} />
         )}
       </div>
-
-      {/* ── Action Bar ──────────────────────────────────────────────────── */}
       <div className={`shrink-0 border-t ${border} px-2.5 py-2 space-y-2`}>
         <div className="flex gap-2">
           <button

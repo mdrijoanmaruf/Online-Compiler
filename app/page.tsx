@@ -538,7 +538,7 @@ const OnlineCompiler = () => {
         { token: 'function', foreground: 'DCDCAA' },
       ],
       colors: {
-        'editor.background': '#000000', 'editor.foreground': '#f8fafc',
+        'editor.background': '#020c1b', 'editor.foreground': '#f8fafc',
         'editor.lineHighlightBackground': '#ffffff08', 'editor.selectionBackground': '#3b82f640',
         'editor.inactiveSelectionBackground': '#3b82f620', 'editorCursor.foreground': '#3b82f6',
         'editorLineNumber.foreground': '#64748b', 'editorLineNumber.activeForeground': '#94a3b8',
@@ -935,7 +935,7 @@ const OnlineCompiler = () => {
 
   return (
     <div
-      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
+      className={`fixed inset-0 z-50 overflow-hidden ${isDarkMode ? 'bg-[#020c1b]' : 'bg-linear-to-br from-purple-50 via-pink-50 to-cyan-50'}`}
       suppressHydrationWarning
     >
       {problem && problemPanelOpen && (
@@ -1049,7 +1049,7 @@ const OnlineCompiler = () => {
             {sidebarOpen && (
               <>
                 <div
-                  className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-950/98' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
+                  className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-[#020c1b]/98' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
                   style={isMobile ? undefined : { '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
                 >
                   <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
@@ -1242,7 +1242,7 @@ const OnlineCompiler = () => {
                     onRunAll={runAllTests}
                   />
                 ) : (
-                  <div ref={normalPanelRef} className={`flex flex-col h-full ${isDarkMode ? 'bg-slate-950/30' : 'bg-white'}`} style={{ '--io-split': `${normalSplitPct}%` } as React.CSSProperties}>
+                  <div ref={normalPanelRef} className={`flex flex-col h-full ${isDarkMode ? 'bg-[#020c1b]/30' : 'bg-white'}`} style={{ '--io-split': `${normalSplitPct}%` } as React.CSSProperties}>
                     <div className={`io-split-input flex flex-col border-b ${ts.border} overflow-hidden`}>
                       <div className={`px-3 py-1.5 border-b ${ts.border} ${ts.bgPrimary} shrink-0`}>
                         <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>Input</span>

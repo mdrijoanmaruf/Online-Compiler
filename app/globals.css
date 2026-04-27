@@ -50,6 +50,105 @@ body {
   border-radius: 4px;
 }
 
+@keyframes slideIndicator {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 54px;
+  height: 26px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 13px;
+  padding: 0;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.theme-toggle.light {
+  background: linear-gradient(135deg, rgba(243, 244, 246, 0.9), rgba(229, 231, 235, 0.95));
+  border-color: rgba(209, 213, 219, 0.5);
+}
+
+.theme-toggle:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.theme-toggle.light:hover {
+  border-color: rgba(209, 213, 219, 0.7);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.1);
+}
+
+.theme-toggle-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.theme-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: rgba(148, 163, 184, 0.7);
+  transition: color 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.theme-toggle.dark .theme-toggle-icon:first-child {
+  color: #3b82f6;
+}
+
+.theme-toggle.light .theme-toggle-icon {
+  color: rgba(107, 114, 128, 0.6);
+}
+
+.theme-toggle.light .theme-toggle-icon:last-child {
+  color: #fbbf24;
+}
+
+.theme-toggle-indicator {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0.2));
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 50%;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transform: translateY(-50%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  z-index: 0;
+}
+
+.theme-toggle.light .theme-toggle-indicator {
+  transform: translate(28px, -50%);
+  background: linear-gradient(135deg, rgba(243, 232, 255, 0.8), rgba(230, 230, 250, 0.6));
+  border-color: rgba(209, 213, 219, 0.4);
+  box-shadow: 0 1px 4px rgba(107, 114, 128, 0.15);
+}
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
 }
@@ -126,6 +225,21 @@ body {
 
 .problem-statement-render .note {
   margin-top: 10px;
+}
+
+.tree-item {
+  --tree-depth: 0;
+  padding-left: calc(var(--tree-depth) * 10px + 6px);
+}
+
+.io-output-split {
+  --io-output: 60%;
+  height: var(--io-output);
+}
+
+.resizer-handle {
+  --resizer-pos: 0%;
+  position: var(--resizer-pos);
 }
 
 @media (prefers-color-scheme: light) {

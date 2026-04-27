@@ -886,10 +886,10 @@ const OnlineCompiler = () => {
       return (
         <div key={node.id}>
           <div
-            className={`flex items-center gap-1 px-1.5 py-0.5 cursor-pointer rounded-sm text-sm transition-colors group
+            className={`tree-item flex items-center gap-1 px-1.5 py-0.5 cursor-pointer rounded-sm text-sm transition-colors group
               ${isActive && !isFolder ? (isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-200/60 text-purple-900') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-gray-700 hover:bg-purple-100/40')}
             `}
-            style={{ paddingLeft: `${depth * 10 + 6}px` }}
+            style={{ '--tree-depth': depth } as React.CSSProperties}
             onClick={() => isFolder ? toggleFolder(node.id) : openFile(node)}
             onContextMenu={(e) => handleContextMenu(e, node.id)}
           >
@@ -968,8 +968,8 @@ const OnlineCompiler = () => {
                 {problem && (
                   <ProblemMetaBar problem={problem} isDark={isDarkMode} onClear={clearProblem} />
                 )}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="lang-dot w-2 h-2 rounded-full shrink-0" style={{ '--lang-color': selectedLanguage.color } as React.CSSProperties} />
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="lang-dot inline-flex items-center justify-center w-2.5 h-2.5 rounded-full shrink-0" style={{ '--lang-color': selectedLanguage.color } as React.CSSProperties} />
                   <select
                     value={selectedLanguage.id}
                     onChange={(e) => { const l = LANGUAGES.find(l => l.id === e.target.value); if (l) handleLanguageChange(l) }}
@@ -984,8 +984,16 @@ const OnlineCompiler = () => {
                 <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                <button type="button" onClick={toggleTheme} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
-                  {isDarkMode ? <FiSun className="h-3.5 w-3.5" /> : <FiMoon className="h-3.5 w-3.5" />}
+                <button type="button" onClick={toggleTheme} className={`theme-toggle ${isDarkMode ? 'dark' : 'light'}`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+                  <div className="theme-toggle-indicator" />
+                  <div className="theme-toggle-track">
+                    <span className="theme-toggle-icon">
+                      <FiSun className="h-4 w-4" />
+                    </span>
+                    <span className="theme-toggle-icon">
+                      <FiMoon className="h-4 w-4" />
+                    </span>
+                  </div>
                 </button>
                 <button type="button" onClick={copyCode} className={`p-1 rounded ${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover} transition-all duration-150`} title="Copy Code">
                   <FiCopy className="h-3.5 w-3.5" />
@@ -1042,7 +1050,7 @@ const OnlineCompiler = () => {
               <>
                 <div
                   className={`${isMobile ? 'absolute inset-0 z-30' : 'relative shrink-0'} flex flex-col ${isDarkMode ? 'bg-slate-950/98' : 'bg-white/95'} ${ts.border} border rounded-lg overflow-hidden`}
-                  style={isMobile ? undefined : { width: `${sidebarWidth}px` }}
+                  style={isMobile ? undefined : { '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
                 >
                   <div className={`flex items-center justify-between px-2 py-1.5 ${ts.bgPrimary} ${ts.borderLight} border-b`}>
                     <span className={`text-xs font-semibold uppercase tracking-wider ${ts.textMuted}`}>Explorer</span>
@@ -1075,7 +1083,7 @@ const OnlineCompiler = () => {
             {contextMenu && (
               <div
                 className={`fixed z-50 rounded-lg shadow-xl border ${isDarkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'} py-0.5 min-w-36`}
-                style={{ left: contextMenu.x, top: contextMenu.y }}
+                style={{ '--ctx-left': `${contextMenu.x}px`, '--ctx-top': `${contextMenu.y}px`, left: 'var(--ctx-left)', top: 'var(--ctx-top)' } as React.CSSProperties}
               >
                 <button
                   type="button"
@@ -1114,10 +1122,12 @@ const OnlineCompiler = () => {
             )}
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-0">
               <div className="flex flex-col min-w-0 w-full lg:w-auto" style={{
-                width: isMobile ? '100%' : `${editorWidth}%`,
-                height: isMobile ? `${mobileEditorHeight}%` : 'auto',
+                '--editor-width': isMobile ? '100%' : `${editorWidth}%`,
+                '--editor-height': isMobile ? `${mobileEditorHeight}%` : 'auto',
+                width: 'var(--editor-width)',
+                height: 'var(--editor-height)',
                 flex: isMobile ? 'none' : undefined,
-              }}>
+              } as React.CSSProperties}>
                 <div className={`flex items-center overflow-x-auto min-h-7 ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`}>
                   {openTabs.map(tabId => {
                     const node = findNode(fileTree, tabId)
@@ -1211,10 +1221,12 @@ const OnlineCompiler = () => {
                 ref={outputContainerRef}
                 className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
                 style={{
-                  width: isMobile ? '100%' : `${100 - editorWidth}%`,
-                  height: isMobile ? `${100 - mobileEditorHeight}%` : 'auto',
+                  '--output-width': isMobile ? '100%' : `${100 - editorWidth}%`,
+                  '--output-height': isMobile ? `${100 - mobileEditorHeight}%` : 'auto',
+                  width: 'var(--output-width)',
+                  height: 'var(--output-height)',
                   flex: isMobile ? 'none' : undefined,
-                }}
+                } as React.CSSProperties}
               >
                 {problem ? (
                   <TestCasePanel

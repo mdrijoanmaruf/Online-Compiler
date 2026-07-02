@@ -157,10 +157,16 @@ function makeDefaultTestCase(id = 1): TestCaseState {
 }
 
 const OnlineCompiler = () => {
-  const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGES[0])
-  const [fileTree, setFileTree] = useState<FileNode[]>(() => makeDefaultTree(LANGUAGES[0]))
-  const [activeFileId, setActiveFileId] = useState<string>('')
-  const [openTabs, setOpenTabs] = useState<string[]>([])
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('webdev-mode') === 'true') {
+      const savedLang = localStorage.getItem('webdev-lang')
+      if (savedLang) {
+        const found = LANGUAGES.find(l => l.id === savedLang)
+        if (found) return found
+      }
+    }
+    return LANGUAGES[0]
+  })
   const [isExecuting, setIsExecuting] = useState(false)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
   const [editorWidth, setEditorWidth] = useState(55)
@@ -190,7 +196,38 @@ const OnlineCompiler = () => {
   const [activeTestCase, setActiveTestCase] = useState(0)
   const [isRunningAll, setIsRunningAll] = useState(false)
 
-  const [isWebDevMode, setIsWebDevMode] = useState(false)
+  const [isWebDevMode, setIsWebDevMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('webdev-mode') === 'true'
+  })
+
+  // Restore Web Dev file tree from localStorage on first load
+  const [fileTree, setFileTree] = useState<FileNode[]>(() => {
+    if (typeof window === 'undefined') return makeDefaultTree(LANGUAGES[0])
+    const savedWebDev = localStorage.getItem('webdev-filetree')
+    if (savedWebDev && localStorage.getItem('webdev-mode') === 'true') {
+      try { return JSON.parse(savedWebDev) } catch { /* fall through */ }
+    }
+    return makeDefaultTree(LANGUAGES[0])
+  })
+
+  // Restore active file + tabs from localStorage
+  const [activeFileId, setActiveFileId] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    if (localStorage.getItem('webdev-mode') === 'true') {
+      return localStorage.getItem('webdev-active-file') || ''
+    }
+    return ''
+  })
+
+  const [openTabs, setOpenTabs] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    if (localStorage.getItem('webdev-mode') === 'true') {
+      const saved = localStorage.getItem('webdev-open-tabs')
+      if (saved) { try { return JSON.parse(saved) } catch { /* fall through */ } }
+    }
+    return []
+  })
 
   const editorRef = useRef<{ editor: Parameters<OnMount>[0]; monaco: Parameters<OnMount>[1] } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -202,6 +239,9 @@ const OnlineCompiler = () => {
   const addTestCaseRef = useRef<() => void>(() => {})
   const testCasesRef = useRef<TestCaseState[]>([])
   const normalPanelRef = useRef<HTMLDivElement>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   const activeFile = activeFileId ? findNode(fileTree, activeFileId) : null
   const code = activeFile?.content || ''
@@ -238,6 +278,29 @@ const OnlineCompiler = () => {
     const saved = localStorage.getItem('compiler-theme')
     if (saved === 'light') setIsDarkMode(false)
   }, [])
+
+  // ── Debounced auto-save for Web Dev mode ────────────────────────────────────
+  useEffect(() => {
+    if (!isWebDevMode) return
+    setAutoSaveStatus('saving')
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem('webdev-filetree', JSON.stringify(fileTree))
+        localStorage.setItem('webdev-active-file', activeFileId)
+        localStorage.setItem('webdev-open-tabs', JSON.stringify(openTabs))
+        localStorage.setItem('webdev-lang', selectedLanguage.id)
+        setAutoSaveStatus('saved')
+        // Fade back to idle after 2s
+        setTimeout(() => setAutoSaveStatus('idle'), 2000)
+      } catch { setAutoSaveStatus('idle') }
+    }, 800) // 800ms debounce
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
+  }, [isWebDevMode, fileTree, activeFileId, openTabs, selectedLanguage.id])
+
+  useEffect(() => {
+    localStorage.setItem('webdev-mode', String(isWebDevMode))
+  }, [isWebDevMode])
 
   const loadProblem = useCallback((payload: ProblemPayload) => {
     setProblem(payload)
@@ -653,6 +716,293 @@ const OnlineCompiler = () => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => editor.getAction('editor.action.copyLinesDownAction')?.run())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => editor.getAction('editor.action.copyLinesUpAction')?.run())
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => editor.getAction('editor.action.formatDocument')?.run())
+
+    // ── HTML completion provider ──────────────────────────────────────────────
+    const HTML_TAGS = [
+      'a','abbr','address','article','aside','audio','b','blockquote','body',
+      'br','button','canvas','caption','cite','code','col','colgroup','data',
+      'datalist','dd','del','details','dfn','dialog','div','dl','dt','em',
+      'embed','fieldset','figcaption','figure','footer','form','h1','h2','h3',
+      'h4','h5','h6','head','header','hr','html','i','iframe','img','input',
+      'ins','kbd','label','legend','li','link','main','map','mark','menu',
+      'meta','meter','nav','noscript','object','ol','optgroup','option',
+      'output','p','picture','pre','progress','q','rp','rt','ruby','s',
+      'samp','script','section','select','small','source','span','strong',
+      'style','sub','summary','sup','table','tbody','td','template',
+      'textarea','tfoot','th','thead','time','title','tr','track','u','ul',
+      'var','video','wbr',
+    ]
+    const VOID_TAGS = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'])
+    const HTML_ATTRS: Record<string, string[]> = {
+      'a': ['href', 'target', 'rel', 'download', 'title'],
+      'img': ['src', 'alt', 'width', 'height', 'loading'],
+      'input': ['type', 'name', 'value', 'placeholder', 'required', 'disabled', 'checked', 'min', 'max', 'pattern'],
+      'form': ['action', 'method', 'enctype', 'novalidate'],
+      'button': ['type', 'disabled', 'form'],
+      'link': ['href', 'rel', 'type', 'media'],
+      'script': ['src', 'type', 'async', 'defer'],
+      'meta': ['name', 'content', 'charset', 'http-equiv'],
+      '*': ['id', 'class', 'style', 'title', 'hidden', 'tabindex', 'data-', 'aria-label', 'aria-hidden', 'role', 'onclick', 'onchange', 'oninput'],
+    }
+    monaco.languages.registerCompletionItemProvider('html', {
+      triggerCharacters: ['<', ' ', '"', '\''],
+      provideCompletionItems(model: import('monaco-editor').editor.ITextModel, position: import('monaco-editor').Position) {
+        const lineText = model.getLineContent(position.lineNumber)
+        const textBefore = lineText.substring(0, position.column - 1)
+
+        const mkRange = (startCol: number) => ({
+          startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+          startColumn: startCol, endColumn: position.column,
+        })
+
+        // ── Attribute completions: inside an open tag after a space ──────────
+        // e.g.  <a |  or  <input type="text" |
+        const attrMatch = textBefore.match(/<(\w+)(?:\s+[\w-]+(?:=(?:"[^"]*"|'[^']*'|[^\s>]*))?)*\s+([\w-]*)$/)
+        if (attrMatch) {
+          const tagName = attrMatch[1]
+          const attrPrefix = attrMatch[2] ?? ''
+          const attrs = [...(HTML_ATTRS[tagName] ?? []), ...HTML_ATTRS['*']]
+          return {
+            suggestions: attrs
+              .filter(a => a.startsWith(attrPrefix))
+              .map(attr => ({
+                label: attr,
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: `${attr}="$1"`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                // Replace the partial attribute prefix
+                range: mkRange(position.column - attrPrefix.length),
+                detail: `${tagName} attribute`,
+              }))
+          }
+        }
+
+        // ── Tag completions: after < character ───────────────────────────────
+        // e.g.  <  or  <di  or  <h
+        const tagAfterBracket = textBefore.match(/<(\w*)$/)
+        if (tagAfterBracket) {
+          const prefix = tagAfterBracket[1]          // what user typed after <
+          const insertStart = position.column - prefix.length  // column after <
+          return {
+            suggestions: HTML_TAGS.filter(t => t.startsWith(prefix)).map(tag => {
+              const isVoid = VOID_TAGS.has(tag)
+              // The < is already typed; we only replace the prefix portion
+              const insertText = isVoid
+                ? `${tag} $2 />`
+                : `${tag}>$1</${tag}>`
+              return {
+                label: tag,
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range: mkRange(insertStart),
+                documentation: `<${tag}> element`,
+                detail: `HTML <${tag}>`,
+                sortText: '0' + tag,   // ensure our items appear first
+              }
+            })
+          }
+        }
+
+        // ── Emmet: bare tag word typed without < ──────────────────────────────
+        // e.g. user types  div  →  <div>|</div>
+        const emmetMatch = textBefore.match(/(?:^|[\s>])([a-z][a-z0-9]*)$/)
+        if (emmetMatch) {
+          const prefix = emmetMatch[1]
+          const insertStart = position.column - prefix.length
+          return {
+            suggestions: HTML_TAGS.filter(t => t.startsWith(prefix)).map(tag => {
+              const isVoid = VOID_TAGS.has(tag)
+              const insertText = isVoid ? `<${tag} $1 />` : `<${tag}>$1</${tag}>`
+              return {
+                label: tag,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                insertText,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range: mkRange(insertStart),
+                documentation: `Expand to <${tag}></${tag}>`,
+                detail: `⚡ Emmet: <${tag}>`,
+                sortText: '0' + tag,
+              }
+            })
+          }
+        }
+
+        return { suggestions: [] }
+      }
+    })
+
+    // ── CSS completion provider ───────────────────────────────────────────────
+    const CSS_PROPS: Array<{ prop: string; values: string[] }> = [
+      { prop: 'display', values: ['block','inline','inline-block','flex','inline-flex','grid','inline-grid','none','contents','table'] },
+      { prop: 'position', values: ['static','relative','absolute','fixed','sticky'] },
+      { prop: 'flex-direction', values: ['row','row-reverse','column','column-reverse'] },
+      { prop: 'justify-content', values: ['flex-start','flex-end','center','space-between','space-around','space-evenly'] },
+      { prop: 'align-items', values: ['stretch','flex-start','flex-end','center','baseline'] },
+      { prop: 'align-self', values: ['auto','stretch','flex-start','flex-end','center','baseline'] },
+      { prop: 'flex-wrap', values: ['nowrap','wrap','wrap-reverse'] },
+      { prop: 'grid-template-columns', values: ['repeat(3, 1fr)','repeat(auto-fit, minmax(200px, 1fr))','1fr 1fr','auto auto auto'] },
+      { prop: 'overflow', values: ['visible','hidden','scroll','auto','clip'] },
+      { prop: 'overflow-x', values: ['visible','hidden','scroll','auto'] },
+      { prop: 'overflow-y', values: ['visible','hidden','scroll','auto'] },
+      { prop: 'font-family', values: ['sans-serif','serif','monospace','cursive','Georgia, serif','Arial, sans-serif','"Segoe UI", sans-serif','"Fira Code", monospace'] },
+      { prop: 'font-size', values: ['8px','10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px','64px','1rem','1.5rem','2rem','1em','0.875em'] },
+      { prop: 'font-weight', values: ['100','200','300','400','500','600','700','800','900','normal','bold','lighter','bolder'] },
+      { prop: 'font-style', values: ['normal','italic','oblique'] },
+      { prop: 'line-height', values: ['1','1.2','1.4','1.5','1.6','1.8','2','normal'] },
+      { prop: 'text-align', values: ['left','right','center','justify','start','end'] },
+      { prop: 'text-decoration', values: ['none','underline','line-through','overline'] },
+      { prop: 'text-transform', values: ['none','uppercase','lowercase','capitalize'] },
+      { prop: 'color', values: ['red','green','blue','black','white','transparent','inherit','currentColor','#000','#fff','#333','rgba(0,0,0,0.5)'] },
+      { prop: 'background', values: ['none','transparent','inherit','linear-gradient(to right, #f00, #00f)'] },
+      { prop: 'background-color', values: ['transparent','white','black','red','green','blue','#f5f5f5','rgba(0,0,0,0.1)'] },
+      { prop: 'background-image', values: ['none','url("")','linear-gradient(to bottom, #fff, #000)','radial-gradient(circle, #fff, #000)'] },
+      { prop: 'background-size', values: ['auto','cover','contain','100%','50%','100px 100px'] },
+      { prop: 'background-repeat', values: ['repeat','no-repeat','repeat-x','repeat-y','round','space'] },
+      { prop: 'border', values: ['none','1px solid #ccc','1px solid #000','2px dashed red','1px solid transparent'] },
+      { prop: 'border-radius', values: ['0','2px','4px','6px','8px','12px','16px','50%','100%','9999px'] },
+      { prop: 'box-shadow', values: ['none','0 1px 3px rgba(0,0,0,0.1)','0 4px 6px rgba(0,0,0,0.1)','0 10px 15px rgba(0,0,0,0.1)','inset 0 1px 2px rgba(0,0,0,0.1)'] },
+      { prop: 'width', values: ['auto','100%','50%','200px','fit-content','min-content','max-content','100vw'] },
+      { prop: 'height', values: ['auto','100%','50%','200px','fit-content','100vh','min-content','max-content'] },
+      { prop: 'min-width', values: ['0','100%','200px','fit-content'] },
+      { prop: 'max-width', values: ['none','100%','768px','1024px','1280px','1536px'] },
+      { prop: 'min-height', values: ['0','100%','100vh','200px'] },
+      { prop: 'max-height', values: ['none','100%','100vh','500px'] },
+      { prop: 'padding', values: ['0','4px','8px','12px','16px','20px','24px','32px','0 8px','8px 16px','4px 8px 4px 8px'] },
+      { prop: 'margin', values: ['0','auto','0 auto','4px','8px','16px','24px','32px','-1px'] },
+      { prop: 'gap', values: ['0','4px','8px','12px','16px','24px','32px','0.5rem','1rem','2rem'] },
+      { prop: 'z-index', values: ['auto','0','1','10','100','1000','9999','-1'] },
+      { prop: 'opacity', values: ['0','0.1','0.2','0.5','0.7','0.9','1'] },
+      { prop: 'cursor', values: ['auto','default','pointer','text','move','not-allowed','grab','grabbing','crosshair','wait'] },
+      { prop: 'transition', values: ['none','all 0.2s ease','all 0.3s ease','opacity 0.2s','transform 0.2s ease','color 0.2s, background 0.2s'] },
+      { prop: 'transform', values: ['none','translateX(0)','translateY(0)','translate(0, 0)','scale(1)','rotate(0deg)','skewX(0deg)'] },
+      { prop: 'animation', values: ['none','spin 1s linear infinite','fadeIn 0.3s ease'] },
+      { prop: 'object-fit', values: ['fill','contain','cover','scale-down','none'] },
+      { prop: 'list-style', values: ['none','disc','decimal','square','circle'] },
+      { prop: 'visibility', values: ['visible','hidden','collapse'] },
+      { prop: 'white-space', values: ['normal','nowrap','pre','pre-line','pre-wrap','break-spaces'] },
+      { prop: 'word-break', values: ['normal','break-all','keep-all','break-word'] },
+      { prop: 'pointer-events', values: ['auto','none'] },
+      { prop: 'user-select', values: ['auto','none','text','all'] },
+      { prop: 'outline', values: ['none','auto','1px solid blue','2px dashed red'] },
+      { prop: 'vertical-align', values: ['baseline','top','middle','bottom','sub','super','text-top','text-bottom'] },
+      { prop: 'content', values: ['""','none','attr(data-content)'] },
+      { prop: 'box-sizing', values: ['content-box','border-box'] },
+    ]
+    monaco.languages.registerCompletionItemProvider('css', {
+      triggerCharacters: [':','-',' ','\t'],
+      provideCompletionItems(model: import('monaco-editor').editor.ITextModel, position: import('monaco-editor').Position) {
+        const lineText = model.getLineContent(position.lineNumber)
+        const textBefore = lineText.substring(0, position.column - 1)
+
+        // Value suggestion: after a colon "display: "
+        const propValueMatch = textBefore.match(/\s*([\w-]+)\s*:\s*([\w-]*)$/)
+        if (propValueMatch) {
+          const propName = propValueMatch[1]
+          const entry = CSS_PROPS.find(p => p.prop === propName)
+          if (entry) {
+            return {
+              suggestions: entry.values.map(val => ({
+                label: val,
+                kind: monaco.languages.CompletionItemKind.Value,
+                insertText: val,
+                range: {
+                  startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                  startColumn: position.column - propValueMatch[2].length, endColumn: position.column,
+                },
+                detail: `${propName}: ${val}`,
+              }))
+            }
+          }
+        }
+
+        // Property suggestion
+        const propMatch = textBefore.match(/(?:^|[{;])\s*([\w-]*)$/)
+        if (propMatch) {
+          const prefix = propMatch[1]
+          return {
+            suggestions: CSS_PROPS.filter(p => p.prop.startsWith(prefix)).map(p => ({
+              label: p.prop,
+              kind: monaco.languages.CompletionItemKind.Property,
+              insertText: `${p.prop}: $1;`,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: {
+                startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                startColumn: position.column - prefix.length, endColumn: position.column,
+              },
+              detail: 'CSS Property',
+              documentation: `Values: ${p.values.slice(0, 6).join(', ')}…`,
+            }))
+          }
+        }
+
+        return { suggestions: [] }
+      }
+    })
+
+    // ── JS/TS extra snippet provider ──────────────────────────────────────────
+    const JS_SNIPPETS = [
+      { label: 'log', body: 'console.log($1)', doc: 'console.log()' },
+      { label: 'clg', body: 'console.log($1)', doc: 'console.log()' },
+      { label: 'cle', body: 'console.error($1)', doc: 'console.error()' },
+      { label: 'clw', body: 'console.warn($1)', doc: 'console.warn()' },
+      { label: 'fn', body: 'function ${1:name}(${2:params}) {\n\t$3\n}', doc: 'function declaration' },
+      { label: 'afn', body: 'const ${1:name} = (${2:params}) => {\n\t$3\n}', doc: 'arrow function' },
+      { label: 'iife', body: '(function() {\n\t$1\n})();', doc: 'Immediately Invoked Function Expression' },
+      { label: 'if', body: 'if ($1) {\n\t$2\n}', doc: 'if statement' },
+      { label: 'ife', body: 'if ($1) {\n\t$2\n} else {\n\t$3\n}', doc: 'if-else statement' },
+      { label: 'for', body: 'for (let ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++) {\n\t$3\n}', doc: 'for loop' },
+      { label: 'forin', body: 'for (const ${1:key} in ${2:obj}) {\n\t$3\n}', doc: 'for...in loop' },
+      { label: 'forof', body: 'for (const ${1:item} of ${2:items}) {\n\t$3\n}', doc: 'for...of loop' },
+      { label: 'foreach', body: '${1:arr}.forEach((${2:item}) => {\n\t$3\n})', doc: 'Array.forEach' },
+      { label: 'map', body: '${1:arr}.map((${2:item}) => $3)', doc: 'Array.map' },
+      { label: 'filter', body: '${1:arr}.filter((${2:item}) => $3)', doc: 'Array.filter' },
+      { label: 'reduce', body: '${1:arr}.reduce((${2:acc}, ${3:cur}) => {\n\t$4\n\treturn ${2:acc}\n}, $5)', doc: 'Array.reduce' },
+      { label: 'promise', body: 'new Promise((resolve, reject) => {\n\t$1\n})', doc: 'new Promise' },
+      { label: 'async', body: 'async function ${1:name}(${2:params}) {\n\ttry {\n\t\t$3\n\t} catch (error) {\n\t\tconsole.error(error)\n\t}\n}', doc: 'async function with try/catch' },
+      { label: 'await', body: 'const ${1:result} = await $2', doc: 'await expression' },
+      { label: 'try', body: 'try {\n\t$1\n} catch (${2:error}) {\n\t$3\n}', doc: 'try-catch block' },
+      { label: 'fetch', body: "const response = await fetch('$1')\nconst data = await response.json()\n$2", doc: 'fetch API' },
+      { label: 'qs', body: "document.querySelector('$1')", doc: 'document.querySelector' },
+      { label: 'qsa', body: "document.querySelectorAll('$1')", doc: 'document.querySelectorAll' },
+      { label: 'addev', body: "${1:element}.addEventListener('${2:click}', (${3:event}) => {\n\t$4\n})", doc: 'addEventListener' },
+      { label: 'class', body: 'class ${1:Name} {\n\tconstructor(${2:params}) {\n\t\t$3\n\t}\n}', doc: 'class declaration' },
+      { label: 'imp', body: "import ${1:name} from '${2:module}'", doc: 'import statement' },
+      { label: 'impa', body: "import { ${1:name} } from '${2:module}'", doc: 'named import' },
+      { label: 'exp', body: 'export default $1', doc: 'default export' },
+      { label: 'exn', body: 'export { $1 }', doc: 'named export' },
+      { label: 'dstr', body: 'const { ${1:key} } = $2', doc: 'object destructuring' },
+      { label: 'dstra', body: 'const [${1:item}] = $2', doc: 'array destructuring' },
+      { label: 'tmpl', body: '`${$1}`', doc: 'template literal' },
+      { label: 'setint', body: 'setInterval(() => {\n\t$1\n}, ${2:1000})', doc: 'setInterval' },
+      { label: 'settmo', body: 'setTimeout(() => {\n\t$1\n}, ${2:1000})', doc: 'setTimeout' },
+      { label: 'locst', body: "localStorage.setItem('${1:key}', ${2:value})", doc: 'localStorage.setItem' },
+      { label: 'locgt', body: "localStorage.getItem('${1:key}')", doc: 'localStorage.getItem' },
+      { label: 'json', body: 'JSON.stringify(${1:obj}, null, 2)', doc: 'JSON.stringify' },
+      { label: 'jsonp', body: 'JSON.parse(${1:str})', doc: 'JSON.parse' },
+    ]
+    for (const lang of ['javascript', 'typescript']) {
+      monaco.languages.registerCompletionItemProvider(lang, {
+        provideCompletionItems(model: import('monaco-editor').editor.ITextModel, position: import('monaco-editor').Position) {
+          const wordInfo = model.getWordUntilPosition(position)
+          const range = {
+            startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+            startColumn: wordInfo.startColumn, endColumn: wordInfo.endColumn,
+          }
+          return {
+            suggestions: JS_SNIPPETS.filter(s => s.label.startsWith(wordInfo.word)).map(s => ({
+              label: s.label,
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: s.body,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+              documentation: s.doc,
+              detail: 'Snippet',
+            }))
+          }
+        }
+      })
+    }
   }
 
   const updateTestCase = useCallback((index: number, patch: Partial<TestCaseState>) => {
@@ -1051,6 +1401,7 @@ const OnlineCompiler = () => {
                 <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                {/*
                 <button
                   type="button"
                   onClick={toggleWebDevMode}
@@ -1059,6 +1410,16 @@ const OnlineCompiler = () => {
                 >
                   Web Dev
                 </button>
+                {isWebDevMode && autoSaveStatus !== 'idle' && (
+                  <span
+                    className={`text-[10px] font-medium transition-all duration-300 ${
+                      autoSaveStatus === 'saving' ? 'text-amber-400 animate-pulse' : 'text-emerald-400'
+                    }`}
+                  >
+                    {autoSaveStatus === 'saving' ? '💾 Saving…' : '✓ Saved'}
+                  </span>
+                )}
+                */}
                 <button type="button" onClick={toggleTheme} className={`theme-toggle ${isDarkMode ? 'dark' : 'light'}`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
                   <div className="theme-toggle-indicator" />
                   <div className="theme-toggle-track">

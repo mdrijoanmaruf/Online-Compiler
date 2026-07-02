@@ -34,10 +34,13 @@ const LANGUAGES = [
   { id: 'c', name: 'C', version: 'GCC Head', extension: 'c', color: '#a8b9cc', monacoLanguage: 'c', wandboxCompiler: 'gcc-head-c', template: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}' },
   { id: 'csharp', name: 'C#', version: '6.12.0', extension: 'cs', color: '#239120', monacoLanguage: 'csharp', wandboxCompiler: 'mono-6.12.0.199', template: 'using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("Hello, World!");\n    }\n}' },
   { id: 'php', name: 'PHP', version: '8.3.12', extension: 'php', color: '#777bb4', monacoLanguage: 'php', wandboxCompiler: 'php-8.3.12', template: '<?php\necho "Hello, World!";\n?>' },
-  { id: 'ruby', name: 'Ruby', version: '3.4.1', extension: 'rb', color: '#cc342d', monacoLanguage: 'ruby', wandboxCompiler: 'ruby-3.4.1', template: 'puts "Hello, World!"' },
   { id: 'go', name: 'Go', version: '1.23.2', extension: 'go', color: '#00add8', monacoLanguage: 'go', wandboxCompiler: 'go-1.23.2', template: 'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}' },
   { id: 'rust', name: 'Rust', version: '1.82.0', extension: 'rs', color: '#000000', monacoLanguage: 'rust', wandboxCompiler: 'rust-1.82.0', template: 'fn main() {\n    println!("Hello, World!");\n}' },
+  { id: 'html', name: 'HTML', version: '5', extension: 'html', color: '#e34c26', monacoLanguage: 'html', wandboxCompiler: '', template: '<!DOCTYPE html>\n<html>\n<head>\n  <title>My App</title>\n</head>\n<body>\n  <h1>Hello, World!</h1>\n</body>\n</html>' },
+  { id: 'css', name: 'CSS', version: '3', extension: 'css', color: '#264de4', monacoLanguage: 'css', wandboxCompiler: '', template: 'body {\n  font-family: sans-serif;\n}' },
 ]
+
+const WEB_DEV_LANGUAGES = ['html', 'css', 'javascript']
 
 let _idCounter = 0
 const uid = () => `f${++_idCounter}_${Date.now()}`
@@ -45,7 +48,7 @@ const uid = () => `f${++_idCounter}_${Date.now()}`
 const extToMonaco: Record<string, string> = {
   js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
   py: 'python', java: 'java', cpp: 'cpp', c: 'c', cs: 'csharp',
-  php: 'php', rb: 'ruby', go: 'go', rs: 'rust', html: 'html',
+  php: 'php', go: 'go', rs: 'rust', html: 'html',
   css: 'css', json: 'json', md: 'markdown', txt: 'plaintext',
   xml: 'xml', yaml: 'yaml', yml: 'yaml', sh: 'shell', sql: 'sql',
 }
@@ -70,7 +73,6 @@ function getFileIconColor(filename: string, isDark: boolean): string {
     c: ['text-sky-400', 'text-sky-600'],
     cs: ['text-green-400', 'text-green-600'],
     php: ['text-purple-400', 'text-purple-600'],
-    rb: ['text-red-400', 'text-red-600'],
     go: ['text-cyan-400', 'text-cyan-600'],
     rs: ['text-orange-300', 'text-orange-700'],
     ts: ['text-blue-400', 'text-blue-600'],
@@ -188,6 +190,8 @@ const OnlineCompiler = () => {
   const [activeTestCase, setActiveTestCase] = useState(0)
   const [isRunningAll, setIsRunningAll] = useState(false)
 
+  const [isWebDevMode, setIsWebDevMode] = useState(false)
+
   const editorRef = useRef<{ editor: Parameters<OnMount>[0]; monaco: Parameters<OnMount>[1] } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const outputContainerRef = useRef<HTMLDivElement>(null)
@@ -288,6 +292,69 @@ const OnlineCompiler = () => {
     window.addEventListener('ext:problem-loaded', handler)
     return () => window.removeEventListener('ext:problem-loaded', handler)
   }, [loadProblem])
+
+  const toggleWebDevMode = () => {
+    setIsWebDevMode(prev => {
+      const nextMode = !prev;
+      if (nextMode) {
+        // Switch to HTML language
+        const htmlLang = LANGUAGES.find(l => l.id === 'html')!;
+        setSelectedLanguage(htmlLang);
+        
+        // Scaffold default web dev project
+        const htmlFile: FileNode = { id: uid(), name: 'index.html', type: 'file', content: htmlLang.template };
+        const cssFile: FileNode = { id: uid(), name: 'style.css', type: 'file', content: 'body {\n  font-family: sans-serif;\n  background: #f0f0f0;\n  text-align: center;\n  padding: 50px;\n}' };
+        const jsFile: FileNode = { id: uid(), name: 'script.js', type: 'file', content: 'console.log("Web Dev Mode active!");' };
+        
+        setFileTree([htmlFile, cssFile, jsFile]);
+        setActiveFileId(htmlFile.id);
+        setOpenTabs([htmlFile.id, cssFile.id, jsFile.id]);
+        
+        // Initial run
+        setTimeout(() => runModeRef.current(), 100);
+      } else {
+        // Switch back to normal language
+        const jsLang = LANGUAGES.find(l => l.id === 'javascript')!;
+        setSelectedLanguage(jsLang);
+        const newTree = makeDefaultTree(jsLang);
+        setFileTree(newTree);
+        const first = findFirstFile(newTree)!;
+        setActiveFileId(first.id);
+        setOpenTabs([first.id]);
+      }
+      return nextMode;
+    })
+  }
+
+  const runWebDev = useCallback(() => {
+    const files = collectFiles(fileTree)
+    const htmlFile = files.find(f => f.path.endsWith('.html'))?.content || '<!DOCTYPE html>\n<html>\n<head>\n<title>App</title>\n</head>\n<body>\n</body>\n</html>'
+    const cssFiles = files.filter(f => f.path.endsWith('.css')).map(f => f.content).join('\n')
+    const jsFiles = files.filter(f => f.path.endsWith('.js') || f.path.endsWith('.ts')).map(f => f.content).join('\n')
+
+    let bundledHtml = htmlFile
+    
+    if (bundledHtml.includes('</head>')) {
+      bundledHtml = bundledHtml.replace('</head>', `<style>\n${cssFiles}\n</style>\n</head>`)
+    } else {
+      bundledHtml = `<style>\n${cssFiles}\n</style>\n${bundledHtml}`
+    }
+
+    if (bundledHtml.includes('</body>')) {
+      bundledHtml = bundledHtml.replace('</body>', `<script>\n${jsFiles}\n</script>\n</body>`)
+    } else {
+      bundledHtml = `${bundledHtml}\n<script>\n${jsFiles}\n</script>`
+    }
+
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.open();
+      newWindow.document.write(bundledHtml);
+      newWindow.document.close();
+    } else {
+      Swal.fire({ title: 'Popup Blocked', text: 'Please allow popups to run the project in a new tab.', icon: 'warning', background: '#fff', color: '#1f2937' })
+    }
+  }, [fileTree])
 
   const runNormal = useCallback(async () => {
     if (!code.trim()) {
@@ -660,8 +727,8 @@ const OnlineCompiler = () => {
   }, [code, activeTestCase, testCases, selectedLanguage.wandboxCompiler, isDarkMode, updateTestCase])
 
   useEffect(() => {
-    runModeRef.current = problem ? runActiveTest : runNormal
-  }, [problem, runActiveTest, runNormal])
+    runModeRef.current = problem ? runActiveTest : (isWebDevMode ? runWebDev : runNormal)
+  }, [problem, runActiveTest, runNormal, isWebDevMode, runWebDev])
 
   const runAllTests = useCallback(async () => {
     if (!code.trim()) return
@@ -976,7 +1043,7 @@ const OnlineCompiler = () => {
                     title="Select programming language"
                     className={`px-1.5 py-1 rounded ${ts.bgSec} ${ts.border} border ${ts.text} focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 text-xs`}
                   >
-                    {LANGUAGES.map(lang => (
+                    {LANGUAGES.filter(lang => isWebDevMode ? WEB_DEV_LANGUAGES.includes(lang.id) : !WEB_DEV_LANGUAGES.includes(lang.id)).map(lang => (
                       <option key={lang.id} value={lang.id} className={isDarkMode ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}>{lang.name}</option>
                     ))}
                   </select>
@@ -984,6 +1051,14 @@ const OnlineCompiler = () => {
                 <div className={`hidden lg:block text-xs ${ts.textMuted} ${ts.bgPrimary} px-1.5 py-0.5 rounded ${ts.borderLight} border shrink-0`}>Ctrl+Enter</div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleWebDevMode}
+                  className={`px-2 py-1 rounded text-xs font-semibold border transition-all duration-150 ${isWebDevMode ? 'bg-blue-500 text-white border-blue-600' : `${ts.bgSec} border ${ts.border} ${ts.textSec} ${ts.bgHover}`}`}
+                  title="Toggle Web Dev Mode"
+                >
+                  Web Dev
+                </button>
                 <button type="button" onClick={toggleTheme} className={`theme-toggle ${isDarkMode ? 'dark' : 'light'}`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
                   <div className="theme-toggle-indicator" />
                   <div className="theme-toggle-track">
@@ -1025,8 +1100,7 @@ const OnlineCompiler = () => {
                   </>
                 )}
                 <button
-                  type="button"
-                  onClick={() => runActiveTest()}
+                  onClick={() => runModeRef.current()}
                   disabled={isExecuting || isRunningAll}
                   className={`px-2 py-1 ${isDarkMode ? 'bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600' : 'bg-linear-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600'} text-white rounded transition-all duration-150 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-xs font-medium`}
                 >
@@ -1122,11 +1196,11 @@ const OnlineCompiler = () => {
             )}
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 relative gap-0">
               <div className="flex flex-col min-w-0 w-full lg:w-auto" style={{
-                '--editor-width': isMobile ? '100%' : `${editorWidth}%`,
-                '--editor-height': isMobile ? `${mobileEditorHeight}%` : 'auto',
+                '--editor-width': isWebDevMode ? '100%' : (isMobile ? '100%' : `${editorWidth}%`),
+                '--editor-height': isWebDevMode ? '100%' : (isMobile ? `${mobileEditorHeight}%` : 'auto'),
                 width: 'var(--editor-width)',
                 height: 'var(--editor-height)',
-                flex: isMobile ? 'none' : undefined,
+                flex: (isMobile || isWebDevMode) ? 'none' : undefined,
               } as React.CSSProperties}>
                 <div className={`flex items-center overflow-x-auto min-h-7 ${ts.bgPrimary} rounded-t ${ts.borderLight} border-b custom-scrollbar`}>
                   {openTabs.map(tabId => {
@@ -1203,13 +1277,13 @@ const OnlineCompiler = () => {
                   </div>
                 </div>
               </div>
-              {isMobile && (
+              {!isWebDevMode && isMobile && (
                 <div className={`h-1.5 ${ts.resizer} active:bg-white/30 cursor-row-resize transition-colors duration-200 rounded-full flex items-center justify-center group my-0.5 select-none`}
                   onMouseDown={handleMouseDown} onTouchStart={(e) => { setIsResizing(true); e.preventDefault() }}>
                   <div className={`h-0.5 w-12 ${ts.resizerBar} ${isDarkMode ? 'group-active:bg-white/70' : 'group-active:bg-black/70'} rounded-full transition-colors duration-200`} />
                 </div>
               )}
-              {!isMobile && (
+              {!isWebDevMode && !isMobile && (
                 <div
                   className={`hidden lg:flex w-1 mx-0.5 ${ts.resizer} cursor-col-resize transition-colors duration-200 rounded-full items-center justify-center group shrink-0`}
                   onMouseDown={handleMouseDown}
@@ -1217,9 +1291,10 @@ const OnlineCompiler = () => {
                   <div className={`w-0.5 h-8 ${ts.resizerBar} rounded-full transition-colors duration-200`} />
                 </div>
               )}
-              <div
-                ref={outputContainerRef}
-                className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
+              {!isWebDevMode && (
+                <div
+                  ref={outputContainerRef}
+                  className={`flex flex-col min-w-0 w-full lg:w-auto overflow-hidden border ${ts.border} rounded-lg`}
                 style={{
                   '--output-width': isMobile ? '100%' : `${100 - editorWidth}%`,
                   '--output-height': isMobile ? `${100 - mobileEditorHeight}%` : 'auto',
@@ -1303,6 +1378,7 @@ const OnlineCompiler = () => {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
           {!isMobile && (

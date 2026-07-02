@@ -54,7 +54,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const wandboxPayload: Record<string, string> = { code, compiler }
+    let processedCode = code
+    if (typeof compiler === 'string' && compiler.startsWith('openjdk')) {
+      processedCode = processedCode.replace(/public\s+class/g, 'class')
+    }
+
+    const wandboxPayload: Record<string, string> = { code: processedCode, compiler }
     if (stdin) wandboxPayload.stdin = stdin
 
     const response = await fetch(WANDBOX_API, {
